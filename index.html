@@ -2455,7 +2455,15 @@ a{color:inherit;text-decoration:none}
     }
     requestAnimationFrame(tick);
   }
-  requestAnimationFrame(tick);
+  // Mobile: skip the rAF drift loop entirely. Nodes sit at the drifted
+  // position computed by applyDrift() during renderNetSelective, which is
+  // already called on every variant rebuild (every ~4.5s), so positions
+  // still vary naturally between cycles. CSS-driven animations (hot edge
+  // dash, flash pulse, ring expand) keep working unchanged. Hundreds of
+  // per-frame SVG attribute writes go to zero.
+  if (!(window.matchMedia && window.matchMedia('(max-width: 720px)').matches)){
+    requestAnimationFrame(tick);
+  }
 })();
 
 // O5 Reveal: hold the video frame, play it once the screen "snaps open"
@@ -2578,9 +2586,15 @@ a{color:inherit;text-decoration:none}
       var overlayKey = s.overlays.map(function(o) { return o.id; }).join(',');
       var key = s.primary.state + '|' + overlayKey;
       if (key !== lastKey) { applyState(s.primary, s.overlay, s.overlays); lastKey = key; }
-      requestAnimationFrame(tick);
     }
-    function startTick() { requestAnimationFrame(tick); }
+    // Driven by the video's native timeupdate event (~4Hz, only while
+    // playing) instead of a 60Hz rAF poll. State changes are on second
+    // boundaries so this is plenty of resolution; cost drops ~15×.
+    function startTick() {
+      tick();
+      video.addEventListener('timeupdate', tick);
+      video.addEventListener('seeked', tick);
+    }
   })();
 </script>
 </body>
