@@ -1055,6 +1055,51 @@ a{color:inherit;text-decoration:none}
   .hero__copy { padding: 6px 18px 0; }
 }
 
+/* === Mobile · UNIFIED INSTRUMENT STRIP ================================
+   Agent + Neural read as halves of one bracketed instrument on phone:
+   - Close the column-gap to zero, drop inner clip-paths
+   - Outer corner brackets only (top-left + bottom-left of Agent,
+     top-right + bottom-right of Neural)
+   - Single hairline divider down the centre
+   - Shared background tone unifies the visual weight */
+@media (max-width: 820px) {
+  .hero { column-gap: 0 !important; }
+
+  .agent-panel  { margin: 0 0 0 16px !important; }
+  .neural-panel { margin: 0 16px 0 0 !important; }
+
+  .agent-panel, .neural-panel {
+    clip-path: none !important;
+    background: rgba(8,14,10,0.72) !important;
+    border-color: rgba(77,213,138,0.22) !important;
+    border-top:    1px solid rgba(77,213,138,0.22) !important;
+    border-bottom: 1px solid rgba(77,213,138,0.22) !important;
+    padding: 11px 12px 12px !important;
+    position: relative !important;
+  }
+  .agent-panel  { border-left:  1px solid rgba(77,213,138,0.22) !important; border-right: 1px solid rgba(77,213,138,0.14) !important; }
+  .neural-panel { border-right: 1px solid rgba(77,213,138,0.22) !important; border-left:  0 !important; }
+
+  /* Outer brackets only — top-left + bottom-left on Agent, top-right + bottom-right on Neural */
+  .agent-panel::before  { width: 11px !important; height: 11px !important; }
+  .neural-panel::before { width: 11px !important; height: 11px !important; }
+  .agent-panel::after,
+  .neural-panel::after {
+    display: block !important;
+    content: '' !important;
+    position: absolute !important;
+    width: 11px !important; height: 11px !important;
+    border: 1px solid var(--lens) !important;
+    pointer-events: none !important;
+  }
+  .agent-panel::after  { bottom: -2px !important; left:  -2px !important; right: auto !important; top: auto !important; border-right: none !important; border-top: none !important; }
+  .neural-panel::after { bottom: -2px !important; right: -2px !important; left:  auto !important; top: auto !important; border-left:  none !important; border-top: none !important; }
+
+  .agent-panel__h, .neural-panel__h {
+    border-bottom-color: rgba(240,245,234,0.08) !important;
+  }
+}
+
 </style>
 </head>
 <body>
