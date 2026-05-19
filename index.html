@@ -45,6 +45,7 @@ a{color:inherit;text-decoration:none}
 
 /* ---------- Masthead ---------- */
 .mast{position:sticky;top:0;z-index:20;background:color-mix(in oklab,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--rule)}
+@media (max-width:720px){.mast{backdrop-filter:none;background:color-mix(in oklab,var(--bg) 96%,transparent)}}
 .mast__row{display:flex;justify-content:space-between;align-items:center;padding:11px 0}
 .mast__brand{font-family:var(--serif);font-size:22px;letter-spacing:-0.01em;color:var(--ink);display:inline-flex;align-items:center;gap:10px}
 .mast__mark{width:45px;height:45px;display:inline-block;image-rendering:pixelated;image-rendering:crisp-edges;border-radius:4px;flex:none}
