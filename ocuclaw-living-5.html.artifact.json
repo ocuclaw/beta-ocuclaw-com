@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "OcuClaw O5 v22 — Living (lens-tinted video, compressed range)",
+  "entry": "ocuclaw-living-5.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-05-19T06:29:31.910Z",
+  "updatedAt": "2026-05-19T06:29:31.917Z",
+  "metadata": {
+    "identifier": "ocuclaw-living",
+    "artifactType": "text/html",
+    "inferred": false
+  }
+}

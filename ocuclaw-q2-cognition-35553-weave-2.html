@@ -1,0 +1,2337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OcuClaw</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..500&family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..500&family=EB+Garamond:ital,wght@0,400..600;1,400..500&family=Playfair+Display:ital,wght@0,400..600;1,400..500&family=Space+Grotesk:wght@300..600&family=JetBrains+Mono:wght@400;500;600&family=IBM+Plex+Mono:ital,wght@0,400..600;1,400..500&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=VT323&family=Silkscreen:wght@400;700&family=Press+Start+2P&family=Pixelify+Sans:wght@400..700&family=Jersey+10&family=Doto:wght@300..800&family=Workbench&family=Syne+Mono&family=Major+Mono+Display&family=DM+Mono:ital,wght@0,300..500;1,300..500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg: #0b0d0a;
+  --bg-2: #0f1310;
+  --bg-3: #141a14;
+  --ink: #f0f5ea;
+  --ink-2: #cfe8d4;
+  --muted: rgba(240,245,234,0.55);
+  --rule: rgba(240,245,234,0.10);
+  --rule-2: rgba(240,245,234,0.18);
+  --lens: #4dd58a;
+  --lens-dim: #2f8c58;
+  --glow: rgba(77,213,138,0.4);
+  --serif: 'Instrument Serif', 'Times New Roman', serif;
+  --sans: 'Inter', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+  --w: 1120px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.55;letter-spacing:-0.005em;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+/* global subtle scanlines + vignette, as if the whole page is on a lens */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 35%, rgba(77,213,138,0.06), transparent 70%),
+    radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(0,0,0,0.55) 100%),
+    repeating-linear-gradient(0deg, rgba(77,213,138,0.025) 0 2px, transparent 2px 4px);
+}
+::selection{background:var(--lens);color:#0b1910}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:var(--w);margin:0 auto;padding:0 40px;position:relative;z-index:2}
+@media (max-width:720px){.wrap{padding:0 22px}}
+
+/* ---------- Masthead ---------- */
+.mast{position:sticky;top:0;z-index:20;background:color-mix(in oklab,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--rule)}
+.mast__row{display:flex;justify-content:space-between;align-items:center;padding:11px 0}
+.mast__brand{font-family:var(--serif);font-size:22px;letter-spacing:-0.01em;color:var(--ink);display:inline-flex;align-items:center;gap:10px}
+.mast__mark{width:45px;height:45px;display:inline-block;image-rendering:pixelated;image-rendering:crisp-edges;border-radius:4px;flex:none}
+.mast__brand span{display:inline-flex;align-items:baseline;gap:10px}
+.mast__brand em{font-style:normal;color:var(--lens-dim);font-size:11px;font-family:var(--mono);letter-spacing:0.14em;text-transform:uppercase}
+.mast__nav{display:flex;gap:22px;font-family:var(--mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted)}
+.mast__nav a:hover{color:var(--lens)}
+@media (max-width:720px){.mast__nav{display:none}}
+
+/* ---------- Hero ---------- */
+.hero{padding:72px 0 96px;min-height:calc(100vh - 52px);display:flex;align-items:center;position:relative;overflow:hidden}
+.hero__world{position:absolute;inset:-8% -8%;pointer-events:none;z-index:0;opacity:0.55;transition:transform 400ms cubic-bezier(.2,.8,.2,1)}
+.hero__world::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 20% 30%, rgba(120,180,140,0.18), transparent 45%),radial-gradient(circle at 78% 68%, rgba(90,140,110,0.22), transparent 50%),radial-gradient(circle at 55% 15%, rgba(200,220,180,0.06), transparent 40%),linear-gradient(135deg, #0f1411 0%, #0a0d0a 50%, #121814 100%);filter:blur(24px)}
+.hero__world::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(12deg, rgba(240,245,234,0.015) 0 2px, transparent 2px 90px),repeating-linear-gradient(-8deg, rgba(77,213,138,0.02) 0 1px, transparent 1px 60px)}
+.hero__field{position:absolute;inset:-4% -4%;z-index:0;pointer-events:none;perspective:1200px;transform-style:preserve-3d}
+.hero__layer{position:absolute;inset:0;will-change:transform;transition:transform 380ms cubic-bezier(.2,.8,.2,1)}
+.hero__layer i{position:absolute;border-radius:50%;animation:drift var(--dur,14s) linear infinite;animation-delay:var(--dly,0s)}
+@keyframes drift{0%{transform:translate(0,0)}50%{transform:translate(-12px,-6px)}100%{transform:translate(0,0)}}
+/* layer aesthetics: deeper layers = smaller, dimmer, more blurred */
+.hero__layer[data-depth="0"] i{width:1px;height:1px;background:rgba(240,245,234,0.18);filter:blur(0.5px)}
+.hero__layer[data-depth="1"] i{width:1.5px;height:1.5px;background:rgba(200,230,210,0.32);box-shadow:0 0 3px rgba(77,213,138,0.18)}
+.hero__layer[data-depth="2"] i{width:2px;height:2px;background:rgba(240,245,234,0.5);box-shadow:0 0 4px rgba(240,245,234,0.25)}
+.hero__layer[data-depth="3"] i{width:2.5px;height:2.5px;background:rgba(77,213,138,0.6);box-shadow:0 0 7px var(--glow)}
+.hero__layer[data-depth="4"] i{width:3px;height:3px;background:rgba(77,213,138,0.85);box-shadow:0 0 10px var(--glow), 0 0 18px rgba(77,213,138,0.35)}
+/* halo ring of dots clinging to the HUD edge */
+.hud-halo{position:absolute;inset:-40px;z-index:0;pointer-events:none;transition:transform 320ms cubic-bezier(.2,.8,.2,1)}
+.hud-halo i{position:absolute;width:2px;height:2px;border-radius:50%;background:rgba(77,213,138,0.6);box-shadow:0 0 5px var(--glow);animation:haloPulse 3.6s ease-in-out infinite;animation-delay:var(--dly,0s)}
+.hud-halo i.dim{background:rgba(240,245,234,0.45);box-shadow:0 0 4px rgba(240,245,234,0.25)}
+.hud-halo i.tiny{width:1px;height:1px;background:rgba(240,245,234,0.3);box-shadow:none}
+@keyframes haloPulse{0%,100%{opacity:0.35}50%{opacity:0.95}}
+.hero__grid{display:flex;flex-direction:column;align-items:center;gap:48px;width:100%;position:relative;z-index:2;text-align:center}
+.hero__copy{max-width:680px}
+.hero__sub{margin-left:auto;margin-right:auto}
+.hero__ctas{justify-content:center}
+.hero__eyebrow{justify-content:center}
+.hud{max-width:640px}
+.hud__body{height:140px}
+@media (max-width:960px){
+  .hero{min-height:auto;padding:40px 0 56px}
+  .hero__grid{grid-template-columns:1fr;gap:32px}
+  .hero__h{font-size:clamp(40px,11vw,60px)}
+  .hud{max-width:100%}
+}
+.hero__eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:18px;display:inline-flex;align-items:center;gap:12px}
+.hero__dot{width:7px;height:7px;border-radius:50%;background:var(--lens);box-shadow:0 0 10px var(--glow);animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{50%{opacity:0.4}}
+.hero__h{font-family:var(--serif);font-weight:400;font-size:clamp(40px,5.6vw,72px);line-height:0.98;letter-spacing:-0.02em;margin:0;text-wrap:balance;color:var(--ink)}
+.hero__h em{font-style:italic;color:var(--lens);text-shadow:0 0 18px var(--glow)}
+.hero__sub{margin-top:22px;max-width:44ch;font-size:15px;line-height:1.5;color:var(--ink-2);opacity:0.85}
+.hero__ctas{margin-top:22px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:14px}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:10px 18px;border:1px solid var(--lens);background:var(--lens);color:#0b1910;border-radius:999px;transition:all 160ms;font-weight:500;box-shadow:0 0 24px rgba(77,213,138,0.25)}
+.btn:hover{background:transparent;color:var(--lens);transform:translateY(-1px)}
+.btn--ghost{background:transparent;color:var(--ink);border-color:var(--rule-2);box-shadow:none}
+.btn--ghost:hover{color:var(--lens);border-color:var(--lens)}
+.btn span{transition:transform 160ms}
+.btn:hover span{transform:translateX(2px)}
+
+/* ---------- L3 Stereo HUD ---------- */
+.hero{position:relative;overflow:hidden}
+.hero__world{filter:brightness(0.72) blur(0.8px)}
+.hud-stereo{position:relative;isolation:isolate}
+.hud-stereo > .hud{position:relative;z-index:3}
+.hud-stereo::before,.hud-stereo::after{
+  content:'';position:absolute;inset:0;
+  border:1.5px solid var(--lens);
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+  pointer-events:none;opacity:0.28;transition:transform 180ms cubic-bezier(.2,.8,.2,1),opacity 180ms;
+}
+.hud-stereo::before{transform:translate3d(var(--stx,-3px),0,0);filter:drop-shadow(0 0 6px rgba(120,190,255,0.35));mix-blend-mode:screen;border-color:#7ad3ff}
+.hud-stereo::after{transform:translate3d(var(--stx2,3px),0,0);filter:drop-shadow(0 0 6px rgba(255,130,150,0.3));mix-blend-mode:screen;border-color:#ff8798}
+.hud-stereo:hover::before,.hud-stereo:hover::after{opacity:0.5}
+.hero__hud{filter:drop-shadow(0 18px 50px rgba(77,213,138,0.22))}
+
+/* ---------- Section wrapper ---------- */
+.sec{padding:72px 0;border-top:1px solid var(--rule)}
+.sec__eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:32px}
+.sec__eyebrow span{color:var(--lens)}
+
+/* ---------- HUD (shared block styling) ---------- */
+.hero__hud{position:relative}
+.hero__hud::before{content:'';position:absolute;left:50%;top:50%;width:140%;height:160%;transform:translate(-50%,-50%);z-index:0;background:radial-gradient(ellipse at center, rgba(77,213,138,0.22) 0%, rgba(77,213,138,0.10) 30%, transparent 60%);filter:blur(30px);pointer-events:none;border-radius:50%}
+.hero__hud::after{content:'';position:absolute;left:50%;top:50%;width:120%;height:140%;transform:translate(-50%,-50%);z-index:0;pointer-events:none;background:radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.05), transparent 50%);mix-blend-mode:screen;border-radius:50%;filter:blur(10px)}
+.hud{
+  width:100%;max-width:520px;margin:0;position:relative;z-index:1;
+  border:1.5px solid var(--lens);
+  background:rgba(10,18,12,0.5);
+  box-shadow:0 0 80px rgba(77,213,138,0.18), inset 0 0 50px rgba(77,213,138,0.06);
+  font-family:var(--mono);font-size:12.5px;color:#cfe8d4;
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+  transition:transform 300ms cubic-bezier(.2,.8,.2,1);
+}
+.hud::before,.hud::after{content:'';position:absolute;width:18px;height:18px;border:1.5px solid var(--lens);pointer-events:none}
+.hud::before{top:-3px;left:-3px;border-right:none;border-bottom:none}
+.hud::after{bottom:-3px;right:-3px;border-left:none;border-top:none}
+.hud__bar{display:flex;justify-content:space-between;padding:11px 16px;border-bottom:1px dashed rgba(77,213,138,0.3);font-size:10.5px;letter-spacing:0.18em;text-transform:uppercase;color:var(--lens)}
+.hud__bar b{font-weight:500;color:#fff}
+.hud__body{padding:14px 16px 10px;display:grid;gap:5px;height:200px;overflow:hidden;align-content:start}
+.hud__line{display:grid;grid-template-columns:52px 16px 1fr;gap:8px;align-items:baseline;animation:line-in 280ms ease-out}
+@keyframes line-in{from{opacity:0;transform:translateX(-3px)}to{opacity:1}}
+.hud__ts{color:rgba(77,213,138,0.6);font-size:10.5px}
+.hud__g{color:var(--lens);text-shadow:0 0 6px var(--glow)}
+.hud__ev b{color:#fff;font-weight:500}
+.hud__prompt{padding:0 16px 14px;color:var(--lens);font-family:var(--mono);font-size:13px}
+.hud__cur{display:inline-block;width:7px;height:13px;background:var(--lens);vertical-align:-2px;animation:blink 1.1s steps(2,start) infinite;box-shadow:0 0 8px var(--glow);margin-left:2px}
+@keyframes blink{to{visibility:hidden}}
+.hud-sec__lede{font-family:var(--serif);font-weight:400;font-size:clamp(28px,4vw,46px);line-height:1.08;letter-spacing:-0.02em;max-width:22ch;margin:0 0 32px;color:var(--ink)}
+.hud-sec__lede em{font-style:italic;color:var(--lens);text-shadow:0 0 14px var(--glow)}
+.hud-cap{margin-top:14px;font-family:var(--mono);font-size:10.5px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted)}
+.hud-cap b{color:var(--lens);font-weight:400}
+
+/* ---------- What ---------- */
+.what__h{font-family:var(--serif);font-weight:400;font-size:clamp(32px,4.4vw,52px);line-height:1.04;letter-spacing:-0.02em;margin:0 0 36px;max-width:20ch;text-wrap:balance;color:var(--ink)}
+.what__h em{font-style:italic;color:var(--lens)}
+.what__list{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--rule-2)}
+@media (max-width:820px){
+  .what__list{grid-template-columns:1fr}
+  .what__item{padding:18px 0 !important;border-right:none}
+}
+.what__item{padding:22px 22px 22px 0;border-bottom:1px solid var(--rule-2);border-right:1px solid var(--rule)}
+.what__list .what__item:nth-child(3n){border-right:none}
+.what__list .what__item:not(:nth-child(3n+1)){padding-left:22px}
+.what__n{font-family:var(--mono);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--lens);margin-bottom:12px}
+.what__t{font-family:var(--serif);font-size:24px;line-height:1.15;letter-spacing:-0.01em;margin:0 0 6px;font-weight:400;color:var(--ink)}
+.what__t em{font-style:italic;color:var(--lens)}
+.what__d{font-size:13.5px;color:var(--ink-2);max-width:28ch;line-height:1.5;opacity:0.8}
+
+/* ---------- Vows ---------- */
+.vows__h{font-family:var(--serif);font-weight:400;font-size:clamp(32px,4.4vw,52px);line-height:1.04;letter-spacing:-0.02em;margin:0 0 36px;max-width:22ch;text-wrap:balance;color:var(--ink)}
+.vows__h em{font-style:italic;color:var(--lens)}
+.vows__grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--rule-2)}
+@media (max-width:820px){
+  .vows__grid{grid-template-columns:1fr}
+  .vow{padding:18px 0 !important;border-right:none}
+}
+.vow{padding:22px 22px 22px 0;border-bottom:1px solid var(--rule-2);border-right:1px solid var(--rule)}
+.vows__grid .vow:nth-child(3n){border-right:none}
+.vows__grid .vow:not(:nth-child(3n+1)){padding-left:22px}
+.vow__n{font-family:var(--mono);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--lens);margin-bottom:12px}
+.vow__t{font-family:var(--serif);font-size:24px;line-height:1.1;letter-spacing:-0.015em;margin:0 0 8px;font-weight:400;color:var(--ink)}
+.vow__t em{font-style:italic;color:var(--lens)}
+.vow__d{font-size:13.5px;color:var(--ink-2);line-height:1.5;max-width:28ch;opacity:0.8}
+
+/* ---------- End ---------- */
+.end{padding:80px 0 70px;border-top:1px solid var(--rule);text-align:center}
+.end__h{font-family:var(--serif);font-weight:400;font-size:clamp(36px,5vw,64px);line-height:1.02;letter-spacing:-0.02em;margin:0 auto;max-width:16ch;text-wrap:balance;color:var(--ink)}
+.end__h em{font-style:italic;color:var(--lens);text-shadow:0 0 18px var(--glow)}
+.end__ctas{margin-top:32px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.end__meta{margin-top:48px;display:flex;justify-content:center;gap:22px;font-family:var(--mono);font-size:10.5px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted)}
+.end__meta a:hover{color:var(--lens)}
+
+/* ---------- Footer ---------- */
+.foot{padding:20px 0 26px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted)}
+.foot__row{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+/* ---------- Tweaks panel ---------- */
+.tweaks{position:fixed;right:16px;bottom:16px;z-index:40;width:300px;max-height:calc(100vh - 32px);overflow-y:auto;background:rgba(11,13,10,0.92);backdrop-filter:blur(10px);border:1.5px solid var(--lens);color:var(--ink);font-family:var(--mono);font-size:11px;letter-spacing:0.04em;padding:14px 14px 12px;box-shadow:0 0 40px rgba(77,213,138,0.18), inset 0 0 30px rgba(77,213,138,0.05);clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);display:none}
+.tweaks.is-on{display:block}
+.tweaks::before,.tweaks::after{content:'';position:absolute;width:14px;height:14px;border:1.5px solid var(--lens)}
+.tweaks::before{top:-3px;left:-3px;border-right:none;border-bottom:none}
+.tweaks::after{bottom:-3px;right:-3px;border-left:none;border-top:none}
+.tweaks__head{display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;margin-bottom:10px;border-bottom:1px dashed rgba(77,213,138,0.3);color:var(--lens);text-transform:uppercase;letter-spacing:0.18em;font-size:10.5px}
+.tweaks__row{display:grid;grid-template-columns:90px 1fr;gap:10px;align-items:center;padding:5px 0}
+.tweaks__row label{color:var(--muted);text-transform:uppercase;letter-spacing:0.14em;font-size:10px}
+.tweaks select, .tweaks input[type=range]{width:100%;background:rgba(77,213,138,0.06);border:1px solid rgba(77,213,138,0.35);color:var(--ink);font-family:var(--mono);font-size:11px;padding:5px 6px;border-radius:3px;outline:none}
+.tweaks select:focus, .tweaks input[type=range]:focus{border-color:var(--lens)}
+.tweaks__val{color:var(--lens);font-variant-numeric:tabular-nums}
+
+/* M1 Diorama HUD video panel */
+.hud--video .hud__video{position:relative;background:transparent;overflow:hidden;border-top:1px dashed rgba(77,213,138,0.3);border-bottom:1px dashed rgba(77,213,138,0.3);aspect-ratio:2/1;isolation:isolate}
+.hud--video .hud__video video{width:100%;height:100%;display:block;object-fit:contain;mix-blend-mode:screen;filter:url(#lens-tint) contrast(0.85) brightness(1.9)}
+.hud--video .hud__video::after{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg, rgba(77,213,138,0.04) 0 2px, transparent 2px 4px)}
+.hud--video .hud__video::before{content:'REC · 0L';position:absolute;top:8px;right:10px;font-family:var(--mono);font-size:9px;letter-spacing:0.18em;color:var(--lens);text-shadow:0 0 6px var(--glow);z-index:2}
+/* M1 Diorama: tunnel floor + receding HUD */
+.hero{perspective:1400px}
+.hero__floor{position:absolute;left:50%;bottom:-30%;width:240%;height:60%;transform:translateX(-50%) rotateX(72deg);transform-origin:50% 0;background:linear-gradient(to bottom, transparent, rgba(77,213,138,0.08) 60%, rgba(77,213,138,0.18));pointer-events:none;z-index:0}
+.hero__floor::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg, transparent 0 60px, rgba(77,213,138,0.18) 60px 61px), repeating-linear-gradient(90deg, transparent 0 80px, rgba(77,213,138,0.18) 80px 81px);mask:linear-gradient(to top, #000 30%, transparent 95%);-webkit-mask:linear-gradient(to top, #000 30%, transparent 95%)}
+.hero__floor::after{content:'';position:absolute;left:50%;top:0;width:1px;height:100%;background:linear-gradient(to bottom,transparent,rgba(77,213,138,0.4));transform:translateX(-50%)}
+.hero__ceil{position:absolute;left:50%;top:-20%;width:240%;height:60%;transform:translateX(-50%) rotateX(-72deg);transform-origin:50% 100%;pointer-events:none;z-index:0;opacity:0.6}
+.hero__ceil::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg, transparent 0 80px, rgba(77,213,138,0.10) 80px 81px), repeating-linear-gradient(90deg, transparent 0 100px, rgba(77,213,138,0.10) 100px 101px);mask:linear-gradient(to bottom, #000 30%, transparent 95%);-webkit-mask:linear-gradient(to bottom, #000 30%, transparent 95%)}
+
+
+/* N1 Wide: cinematic wide HUD, copy stacked underneath */
+.hud{max-width:840px}
+.hud--video .hud__video{aspect-ratio:2/1}
+.hero__grid{gap:36px}
+.hero__copy{max-width:760px}
+.hero__h{font-size:clamp(36px,4.6vw,58px)}
+.hud-cap{letter-spacing:0.22em}
+
+
+/* ---------- Agent Status (Listening) corner panel ---------- */
+.agent-panel{
+  position:absolute;left:clamp(32px,4.5vw,80px);top:30%;transform:translateY(-50%) scale(0.7);transform-origin:left center;z-index:15;
+  width:390px;
+  border:1px solid var(--rule-2);
+  background:rgba(8,14,10,0.85);
+  backdrop-filter:blur(8px);
+  font-family:var(--mono);
+  clip-path:polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+  padding:18px 21px 21px;
+  box-shadow:0 0 30px rgba(77,213,138,0.12), inset 0 0 24px rgba(77,213,138,0.04);
+  animation: copyFadeIn 1.0s cubic-bezier(.22,.8,.32,1) 1.8s both;
+}
+.agent-panel::before,.agent-panel::after{content:'';position:absolute;width:15px;height:15px;border:1px solid var(--lens);pointer-events:none}
+.agent-panel::before{top:-2px;left:-2px;border-right:none;border-bottom:none}
+.agent-panel::after{bottom:-2px;right:-2px;border-left:none;border-top:none}
+.agent-panel__h{
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:14px;letter-spacing:0.22em;text-transform:uppercase;color:var(--lens);
+  padding-bottom:12px;border-bottom:1px dashed rgba(77,213,138,0.25);
+  margin-bottom:15px;
+}
+.agent-panel__h b{color:var(--muted);font-weight:400;letter-spacing:0.18em}
+.agent-panel__status{
+  font-family:var(--sans);font-size:18px;color:var(--ink);
+  letter-spacing:0.02em;margin-bottom:12px;display:inline-flex;align-items:center;gap:3px;
+}
+.agent-panel__cur{
+  display:inline-block;width:9px;height:17px;background:var(--lens);
+  vertical-align:-2px;animation:blink 1.05s steps(2,start) infinite;
+  box-shadow:0 0 9px var(--glow);margin-left:4px;
+}
+.wave{display:flex;align-items:center;gap:3px;height:57px}
+.wave i{
+  display:inline-block;width:3.75px;border-radius:1.5px;
+  background:var(--lens);box-shadow:0 0 6px var(--glow);
+  animation:wave 1.4s ease-in-out infinite;
+}
+@keyframes wave{0%,100%{height:8px}50%{height:var(--h,39px)}}
+.agent-panel__sub{margin-top:12px;font-size:15px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;font-family:var(--mono)}
+
+@media (max-width:820px){
+  .agent-panel{position:relative;left:auto;top:auto;transform:none;width:auto;margin:18px 22px 0}
+}
+
+/* ---------- Neural Net panel (right) ---------- */
+.neural-panel{
+  position:absolute;right:clamp(32px,4.5vw,80px);top:30%;transform:translateY(-50%) scale(0.7);transform-origin:right center;z-index:15;
+  width:390px;
+  border:1px solid var(--rule-2);
+  background:rgba(8,14,10,0.85);
+  backdrop-filter:blur(8px);
+  font-family:var(--mono);
+  clip-path:polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+  padding:18px 21px 21px;
+  box-shadow:0 0 30px rgba(77,213,138,0.12), inset 0 0 24px rgba(77,213,138,0.04);
+  animation: copyFadeIn 1.0s cubic-bezier(.22,.8,.32,1) 1.9s both;
+}
+.neural-panel::before,.neural-panel::after{content:'';position:absolute;width:15px;height:15px;border:1px solid var(--lens);pointer-events:none}
+.neural-panel::before{top:-2px;right:-2px;border-left:none;border-bottom:none}
+.neural-panel::after{bottom:-2px;left:-2px;border-right:none;border-top:none}
+.neural-panel__h{
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:14px;letter-spacing:0.22em;text-transform:uppercase;color:var(--lens);
+  padding-bottom:9px;border-bottom:1px dashed rgba(77,213,138,0.25);
+  margin-bottom:6px;
+}
+.neural-panel__h b{color:var(--muted);font-weight:400;letter-spacing:0.18em}
+.neural-panel__sub{margin-top:12px;font-size:15px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;display:flex;justify-content:space-between;align-items:center}
+.neural-panel__sub span b{color:var(--lens);font-weight:400}
+.neural-panel__viz{height:132px;position:relative;overflow:hidden;border-radius:3px}
+.neural-panel__viz svg{display:block;width:100%;height:100%}
+
+/* shared neural elements */
+.nn-node{fill:var(--lens);filter:drop-shadow(0 0 4px var(--glow))}
+.nn-node--dim{fill:rgba(77,213,138,0.35)}
+.nn-edge{stroke:rgba(77,213,138,0.18);stroke-width:0.6;fill:none}
+.nn-edge--hot{stroke:var(--lens);stroke-width:0.9;filter:drop-shadow(0 0 3px var(--glow))}
+
+/* === Shared base === */
+.nn-edge{stroke:rgba(77,213,138,0.32);stroke-width:0.85;fill:none}
+.nn-edge--hot{stroke:var(--lens);stroke-width:1.6;fill:none;filter:drop-shadow(0 0 5px var(--glow));stroke-linecap:round}
+.nn-edge--dormant{opacity:0 !important;animation:none !important}
+.nn-node{fill:var(--lens);opacity:0.85;filter:drop-shadow(0 0 3px var(--glow))}
+.nn-node--flash{fill:var(--lens);filter:drop-shadow(0 0 6px var(--glow));opacity:0}
+.nn-node--ring{fill:none;stroke:var(--lens);stroke-width:0.8}
+/* Inactive hot edges/flashes: hide via stroke/fill-opacity (independent of the
+   keyframe-controlled `opacity`), so toggling data-active during the animation
+   doesn't restart it — pulse stays in phase across re-randomization. */
+.nn-edge--hot[data-active="0"]{stroke-opacity:0;filter:none}
+.nn-node--flash[data-active="0"]{fill-opacity:0;filter:none}
+
+/* All 4 styles: ONE pulse per layer-slot. Cycle = layers * SLOT.
+   Edge animation runs only inside its slot, then is fully invisible. */
+
+/* All 4 styles are CHAIN variants — longer pulse, soft flash decay, single-pulse-per-edge.
+   Causality enforced + convergence bias in JS for denser look. */
+
+/* CHAIN — baseline 4.6s */
+@keyframes nnChain{
+  0%        {stroke-dashoffset:200;opacity:0}
+  3%        {opacity:0.95}
+  19%       {opacity:0.95}
+  23%       {stroke-dashoffset:-100;opacity:0}
+  100%      {stroke-dashoffset:-100;opacity:0}
+}
+@keyframes nnChainFlash{
+  0%,20%,100%{opacity:0;r:2.5}
+  22%        {opacity:1;r:5.2}
+  32%        {opacity:0.3;r:4}
+  44%        {opacity:0;r:3}
+}
+.nn-chain .nn-edge--hot{stroke-dasharray:28 420;animation:nnChain 4.6s cubic-bezier(.5,.1,.25,1) infinite both;animation-delay:var(--d,0s)}
+.nn-chain .nn-node--flash{animation:nnChainFlash 4.6s cubic-bezier(.5,.1,.25,1) infinite both;animation-delay:var(--nd,0s)}
+
+/* MESH — 4.6s, denser network (4-wide middle), brighter sustained flash */
+@keyframes nnMesh{
+  0%        {stroke-dashoffset:200;opacity:0}
+  3%        {opacity:0.95}
+  19%       {opacity:0.95}
+  23%       {stroke-dashoffset:-100;opacity:0}
+  100%      {stroke-dashoffset:-100;opacity:0}
+}
+@keyframes nnMeshFlash{
+  0%,20%,100%{opacity:0;r:2.5}
+  22%        {opacity:1;r:5.4}
+  30%        {opacity:0.5;r:4.2}
+  42%        {opacity:0;r:3}
+}
+.nn-mesh .nn-edge--hot{stroke-dasharray:26 420;animation:nnMesh 4.6s cubic-bezier(.5,.1,.25,1) infinite both;animation-delay:var(--d,0s)}
+.nn-mesh .nn-node--flash{animation:nnMeshFlash 4.6s cubic-bezier(.5,.1,.25,1) infinite both;animation-delay:var(--nd,0s)}
+
+/* WEAVE — 4.4s, sharper pulse, brighter quick flash */
+@keyframes nnWeave{
+  0%        {stroke-dashoffset:200;opacity:0}
+  4%        {opacity:1}
+  18%       {opacity:1}
+  22%       {stroke-dashoffset:-100;opacity:0}
+  100%      {stroke-dashoffset:-100;opacity:0}
+}
+@keyframes nnWeaveFlash{
+  0%,19%,100%{opacity:0;r:2.5}
+  21%        {opacity:1;r:5.6}
+  28%        {opacity:0.5;r:4.2}
+  38%        {opacity:0;r:3}
+}
+.nn-weave .nn-edge--hot{stroke-dasharray:22 400;animation:nnWeave 4.4s cubic-bezier(.55,.08,.28,1) infinite both;animation-delay:var(--d,0s)}
+.nn-weave .nn-node--flash{animation:nnWeaveFlash 4.4s cubic-bezier(.55,.08,.28,1) infinite both;animation-delay:var(--nd,0s)}
+
+/* CASCADE — 4.8s, longer pulse trail, lingering flash */
+@keyframes nnCascade{
+  0%        {stroke-dashoffset:220;opacity:0}
+  4%        {opacity:0.9}
+  20%       {opacity:0.9}
+  24%       {stroke-dashoffset:-120;opacity:0}
+  100%      {stroke-dashoffset:-120;opacity:0}
+}
+@keyframes nnCascadeFlash{
+  0%,21%,100%{opacity:0;r:2.5}
+  23%        {opacity:1;r:5.4}
+  35%        {opacity:0.3;r:4}
+  48%        {opacity:0;r:3}
+}
+.nn-cascade .nn-edge--hot{stroke-dasharray:34 460;animation:nnCascade 4.8s cubic-bezier(.55,.05,.2,1) infinite both;animation-delay:var(--d,0s)}
+.nn-cascade .nn-node--flash{animation:nnCascadeFlash 4.8s cubic-bezier(.55,.05,.2,1) infinite both;animation-delay:var(--nd,0s)}
+
+/* FLOW — cycle 1.33s, traversal 87% × 1.33 = 1.16s (unchanged from original).
+   Gap = 13% × 1.33 = 0.17s = SLOT 0.34s / 2. We shrank the cycle to halve
+   the gap, then extended keyframe end (77% → 87%) to keep traversal time
+   identical so wave speed across each wire doesn't change. */
+@keyframes nnFlow{
+  0%        {stroke-dashoffset:200;opacity:0}
+  5%        {opacity:0.85}
+  83%       {opacity:0.85}
+  87%       {stroke-dashoffset:-100;opacity:0}
+  100%      {stroke-dashoffset:-100;opacity:0}
+}
+/* Flash peak at ~62% of cycle preserves "dot lit during crossing": dashoffset
+   200 → -100 over 0-87% means leading edge reaches dst at 200/300 × 87 = 58%,
+   trailing leaves at 87%. */
+@keyframes nnFlowFlash{
+  0%,50%,100%{opacity:0;r:2.5}
+  62%        {opacity:1;r:5.4}
+  84%        {opacity:0.35;r:4}
+  95%        {opacity:0;r:3}
+}
+.nn-flow .nn-edge--hot{stroke-dasharray:32 420;animation:nnFlow 1.33s cubic-bezier(.5,.1,.25,1) infinite both;animation-delay:var(--d,0s)}
+.nn-flow .nn-node--flash{animation:nnFlowFlash 1.33s cubic-bezier(.5,.1,.25,1) infinite both;animation-delay:var(--nd,0s)}
+
+/* GLOW — full-edge fade. The wire isn't dashed; it lights up end-to-end
+   as a unit, ramps to peak, then fades. Companion grammar to nn-flow:
+   same 2.4s cycle so they can be cross-faded without retiming. dasharray
+   100 0 (with pathLength=100 set on the path) makes the entire stroke
+   visible. nnGlowFlash fires the destination node when the edge is at
+   peak brightness (~30% of cycle). */
+@keyframes nnGlow{
+  0%, 100% {opacity:0}
+  10%      {opacity:0.95}
+  35%      {opacity:0.95}
+  55%      {opacity:0}
+}
+@keyframes nnGlowFlash{
+  0%,15%,100%{opacity:0;r:2.5}
+  22%        {opacity:1;r:5.4}
+  38%        {opacity:0.4;r:4}
+  55%        {opacity:0;r:3}
+}
+.nn-glow .nn-edge--hot{stroke-dasharray:100 0;animation:nnGlow 2.4s ease-in-out infinite both;animation-delay:var(--d,0s)}
+.nn-glow .nn-node--flash{animation:nnGlowFlash 2.4s ease-in-out infinite both;animation-delay:var(--nd,0s)}
+
+/* GLIDE — slowest base cycle (5.6s), longest visible trail, brightest
+   sustained flash. Used by GLIDE variant for an elegant slow sweep. */
+@keyframes nnGlide{
+  0%        {stroke-dashoffset:200;opacity:0}
+  4%        {opacity:0.9}
+  32%       {opacity:0.9}
+  38%       {stroke-dashoffset:-100;opacity:0}
+  100%      {stroke-dashoffset:-100;opacity:0}
+}
+@keyframes nnGlideFlash{
+  0%,32%,100%{opacity:0;r:2.5}
+  37%        {opacity:1;r:5.6}
+  48%        {opacity:0.4;r:4.4}
+  62%        {opacity:0;r:3}
+}
+.nn-glide .nn-edge--hot{stroke-dasharray:34 440;animation:nnGlide 5.6s cubic-bezier(.5,.05,.2,1) infinite both;animation-delay:var(--d,0s)}
+.nn-glide .nn-node--flash{animation:nnGlideFlash 5.6s cubic-bezier(.5,.05,.2,1) infinite both;animation-delay:var(--nd,0s)}
+
+/* All variants share the same tide drift mode underneath. The animation
+   grammar (nn-flow traveling dash vs phosphor whole-edge fade) is
+   selected per-variant by the rules below. */
+
+/* ============================================================
+   STYLE-VARIANT SWITCHER (1..20) — two families of eight + a hybrid
+   family of four. All 20 share the SAME 1.33s cycle, SLOT, firing pick,
+   and per-cycle re-randomization rhythm — pulse rate, randomness, and
+   timing are identical across them.
+     Living family    (1 anchor, 2..8 variations)   — traveling-dash on
+                                                      curvy paths. Pure
+                                                      signal-flow grammar.
+     Cognition family (9 anchor, 10..16 variations) — Living + differentiated
+                                                      layer firing + ghost
+                                                      edges (skip / back),
+                                                      with multi-head on
+                                                      select variations.
+     Hybrid family    (17..20)                      — Living grammar ×
+                                                      Focus precision
+                                                      (butt cap, hot core,
+                                                      sharper stack). Each
+                                                      picks a different
+                                                      subset of Cognition
+                                                      features to mix in.
+   Within each family, variations differ only in stroke weight, glow stack,
+   dash length, baseline brightness, ambient backdrop, multi-head, and
+   (where it adds value) per-variant keyframe shape. Colors stay green
+   throughout.
+   data-variant="N" is set on the <svg>; data-variant-bg="N" on the
+   container so backdrops can use ::before/::after.
+   ============================================================ */
+
+/* Variant 1 — LIVING — Living-family anchor. No overrides. */
+
+/* === Living family (1 anchor, 2..8 variations) — all share nn-flow
+   grammar (traveling-dash on curvy paths). They differ in stroke weight,
+   dash length, glow stack, baseline brightness, ambient backdrop,
+   multi-head trail (variant 6), and (for ponder/stutter) per-variant
+   keyframe shape. Same 1.33s base period so the JS column-swap schedule
+   keeps phase. */
+
+/* Variant 2 — QUICKEN — eager, brighter peak, tighter pulse */
+[data-variant="2"] .nn-edge{stroke:rgba(77,213,138,0.34);stroke-width:0.95}
+[data-variant="2"] .nn-edge--hot{stroke-width:1.7;stroke-dasharray:24 380;filter:drop-shadow(0 0 4px var(--glow)) drop-shadow(0 0 9px var(--glow)) drop-shadow(0 0 18px var(--glow))}
+[data-variant="2"] .nn-node{filter:drop-shadow(0 0 4px var(--glow)) drop-shadow(0 0 9px var(--glow));opacity:1}
+[data-variant="2"] .nn-node--flash{filter:drop-shadow(0 0 6px var(--glow)) drop-shadow(0 0 14px var(--glow)) drop-shadow(0 0 24px var(--glow))}
+.neural-panel__viz[data-variant-bg="2"]::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(circle at 50% 50%, rgba(77,213,138,0.06), transparent 65%);
+  mix-blend-mode:screen;
+}
+
+/* Variant 3 — PONDER — slow contemplative trail, dim baseline, lingering pulse */
+@keyframes nnPonder{
+  0%   {stroke-dashoffset:240;opacity:0}
+  6%   {opacity:0.85}
+  88%  {opacity:0.85}
+  96%  {stroke-dashoffset:-110;opacity:0}
+  100% {stroke-dashoffset:-110;opacity:0}
+}
+@keyframes nnPonderFlash{
+  0%,55%,100%{opacity:0;r:2.5}
+  68%        {opacity:1;r:5.6}
+  84%        {opacity:0.5;r:4.8}
+  98%        {opacity:0;r:3.4}
+}
+[data-variant="3"] .nn-edge{stroke:rgba(77,213,138,0.28);stroke-width:0.6}
+[data-variant="3"] .nn-edge--hot{stroke-width:1.55;stroke-dasharray:48 460;animation-name:nnPonder !important;filter:drop-shadow(0 0 2.5px rgba(220,255,230,1)) drop-shadow(0 0 9px var(--glow)) drop-shadow(0 0 20px rgba(77,213,138,1))}
+[data-variant="3"] .nn-node{filter:drop-shadow(0 0 3px var(--glow));opacity:0.78}
+[data-variant="3"] .nn-node--flash{animation-name:nnPonderFlash !important;filter:drop-shadow(0 0 5px var(--glow)) drop-shadow(0 0 12px rgba(77,213,138,0.6))}
+
+/* Variant 4 — STUTTER — same period but jagged tempo: pulse hesitates mid-traversal */
+@keyframes nnStutter{
+  0%   {stroke-dashoffset:200;opacity:0}
+  4%   {opacity:0.85}
+  34%  {stroke-dashoffset:80;opacity:0.85}
+  37%  {stroke-dashoffset:80;opacity:0.35}
+  43%  {stroke-dashoffset:40;opacity:0.85}
+  87%  {stroke-dashoffset:-100;opacity:0}
+  100% {stroke-dashoffset:-100;opacity:0}
+}
+@keyframes nnStutterFlash{
+  0%,52%,100%{opacity:0;r:2.5}
+  56%        {opacity:0.5;r:4.5}
+  62%        {opacity:1;r:5.6}
+  84%        {opacity:0.3;r:4}
+  95%        {opacity:0;r:3}
+}
+[data-variant="4"] .nn-edge{stroke:rgba(77,213,138,0.26);stroke-width:0.7}
+[data-variant="4"] .nn-edge--hot{stroke-width:1.4;stroke-dasharray:30 420;animation-name:nnStutter !important;filter:drop-shadow(0 0 4px var(--glow)) drop-shadow(0 0 10px var(--glow))}
+[data-variant="4"] .nn-node{filter:drop-shadow(0 0 4px var(--glow));opacity:0.9}
+[data-variant="4"] .nn-node--flash{animation-name:nnStutterFlash !important;filter:drop-shadow(0 0 6px var(--glow)) drop-shadow(0 0 14px var(--glow))}
+.neural-panel__viz[data-variant-bg="4"]::after{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg, rgba(77,213,138,0.045) 0 1px, transparent 1px 5px);
+  mix-blend-mode:screen;
+}
+
+/* Variant 5 — DRIFT — even, calm wave: slightly longer dash, soft round
+   caps, gentle outer halo, ambient lateral backdrop. The "thought drifting
+   through" mode — same period as Living, just less hurried-feeling. */
+[data-variant="5"] .nn-edge{stroke:rgba(77,213,138,0.31);stroke-width:0.65}
+[data-variant="5"] .nn-edge--hot{stroke-width:1.85;stroke-dasharray:42 440;stroke-linecap:round;filter:drop-shadow(0 0 2.5px rgba(220,255,230,1)) drop-shadow(0 0 10px var(--glow)) drop-shadow(0 0 26px var(--glow)) drop-shadow(0 0 48px rgba(77,213,138,1))}
+[data-variant="5"] .nn-node{filter:drop-shadow(0 0 4px var(--glow));opacity:0.9}
+[data-variant="5"] .nn-node--flash{filter:drop-shadow(0 0 6px var(--glow)) drop-shadow(0 0 14px var(--glow)) drop-shadow(0 0 22px rgba(77,213,138,0.45))}
+.neural-panel__viz[data-variant-bg="5"]::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 70% 38% at 50% 50%, rgba(77,213,138,0.07), transparent 72%);
+  mix-blend-mode:screen;
+}
+
+/* Variant 6 — SHIMMER — multi-head trail (cyan 2nd head offset 80ms behind
+   primary green) gives an iridescent dual-trace feel. Mid-weight, balanced
+   glow, no backdrop. The "two thoughts on the same edge" mode. */
+[data-variant="6"] .nn-edge{stroke:rgba(77,213,138,0.26);stroke-width:0.7}
+[data-variant="6"] .nn-edge--hot{stroke-width:1.35;stroke-dasharray:32 410;filter:drop-shadow(0 0 4px var(--glow)) drop-shadow(0 0 10px var(--glow))}
+[data-variant="6"] .nn-node{filter:drop-shadow(0 0 4px var(--glow));opacity:0.95}
+[data-variant="6"] .nn-node--flash{filter:drop-shadow(0 0 6px var(--glow)) drop-shadow(0 0 14px var(--glow)) drop-shadow(0 0 22px var(--glow))}
+
+/* Variant 7 — FILAMENT — thin bright incandescent-wire feel: very narrow
+   stroke, four-tier outer halo (the wire is the bright core, halos are
+   the surrounding glow). Reads precise + alive. */
+[data-variant="7"] .nn-edge{stroke:rgba(77,213,138,0.30);stroke-width:0.5}
+[data-variant="7"] .nn-edge--hot{stroke-width:0.95;stroke-dasharray:34 410;stroke-linecap:round;filter:drop-shadow(0 0 2px var(--glow)) drop-shadow(0 0 5px var(--glow)) drop-shadow(0 0 11px var(--glow)) drop-shadow(0 0 20px rgba(77,213,138,0.4))}
+[data-variant="7"] .nn-node{filter:drop-shadow(0 0 3px var(--glow)) drop-shadow(0 0 7px var(--glow));opacity:1}
+[data-variant="7"] .nn-node--flash{filter:drop-shadow(0 0 4px var(--glow)) drop-shadow(0 0 11px var(--glow)) drop-shadow(0 0 19px var(--glow))}
+
+/* Variant 8 — WHISPER — dimmest of the family: barely-there baseline,
+   thin pulse, single-tier glow. Subliminal feed-forward. */
+[data-variant="8"] .nn-edge{stroke:rgba(77,213,138,0.12);stroke-width:0.5}
+[data-variant="8"] .nn-edge--hot{stroke-width:1.0;stroke-dasharray:36 430;filter:drop-shadow(0 0 3px var(--glow)) drop-shadow(0 0 7px rgba(77,213,138,0.55))}
+[data-variant="8"] .nn-node{filter:drop-shadow(0 0 2px var(--glow));opacity:0.7}
+[data-variant="8"] .nn-node--flash{filter:drop-shadow(0 0 4px var(--glow)) drop-shadow(0 0 9px var(--glow))}
+
+/* ============================================================
+   Cognition family (9 anchor, 10..16 variations) — Living grammar
+   (nn-flow on curvy paths) PLUS the cognition "mind-feel" features:
+     • layerProfile:'differentiated' — col 0→1 tight (encoding-like),
+       1→2 widest variance (mid-reasoning), 2→3 decisive (output)
+     • ghosts:4 — subtle backward / skip-forward shimmer edges
+     • multiHead — 2nd dimmer cyan trail offset 80ms behind the primary
+       (used by Resolve/Lucid/Intuit)
+   The differences between 9..16 are stroke weight, glow stack, baseline
+   brightness, ghost contrast, multi-head, and (for Insight) an out-sized
+   col-3 output flash that lands like a eureka spike.
+   ============================================================ */
+
+/* Variant 10 — REVERIE — soft cognition, dim baseline, gentle bloom */
+[data-variant="10"] .nn-edge{stroke:rgba(77,213,138,0.31);stroke-width:0.55}
+[data-variant="10"] .nn-edge--hot{stroke-width:1.7;stroke-dasharray:38 440;filter:drop-shadow(0 0 2.5px rgba(220,255,230,1)) drop-shadow(0 0 10px var(--glow)) drop-shadow(0 0 26px var(--glow)) drop-shadow(0 0 43px rgba(77,213,138,0.82))}
+[data-variant="10"] .nn-node{filter:drop-shadow(0 0 4px var(--glow));opacity:0.85}
+[data-variant="10"] .nn-node--flash{filter:drop-shadow(0 0 6px var(--glow)) drop-shadow(0 0 14px var(--glow))}
+
+/* Variant 11 — RESOLVE — focused two-head, brighter primary, sharp output */
+[data-variant="11"] .nn-edge{stroke:rgba(77,213,138,0.30);stroke-width:0.7}
+[data-variant="11"] .nn-edge--hot{stroke-width:1.4;stroke-dasharray:30 420;filter:drop-shadow(0 0 4px var(--glow)) drop-shadow(0 0 10px var(--glow))}
+[data-variant="11"] .nn-node{filter:drop-shadow(0 0 4px var(--glow));opacity:0.95}
+[data-variant="11"] .nn-node--flash{filter:drop-shadow(0 0 6px var(--glow)) drop-shadow(0 0 14px var(--glow)) drop-shadow(0 0 22px var(--glow))}
+
+/* Variant 12 — LUCID — everything dialed in, brightest peaks */
+[data-variant="12"] .nn-edge{stroke:rgba(77,213,138,0.34);stroke-width:0.8}
+[data-variant="12"] .nn-edge--hot{stroke-width:1.6;stroke-dasharray:28 400;filter:drop-shadow(0 0 5px var(--glow)) drop-shadow(0 0 12px var(--glow)) drop-shadow(0 0 22px var(--glow))}
+[data-variant="12"] .nn-node{filter:drop-shadow(0 0 5px var(--glow));opacity:1}
+[data-variant="12"] .nn-node--flash{filter:drop-shadow(0 0 7px var(--glow)) drop-shadow(0 0 16px var(--glow)) drop-shadow(0 0 28px var(--glow))}
+
+/* Variant 13 — INSIGHT — quiet hot path with an out-sized col-3 flash.
+   Eureka mode: the wave climbs softly, then the output column lights up
+   like a thought arriving. Stroke + ghost stack stays modest so the
+   col-3 override (below) reads as the standout moment. */
+[data-variant="13"] .nn-edge{stroke:rgba(77,213,138,0.18);stroke-width:0.55}
+[data-variant="13"] .nn-edge--hot{stroke-width:1.05;stroke-dasharray:38 440;filter:drop-shadow(0 0 3px var(--glow)) drop-shadow(0 0 8px var(--glow))}
+[data-variant="13"] .nn-node{filter:drop-shadow(0 0 3px var(--glow));opacity:0.85}
+[data-variant="13"] .nn-node--flash{filter:drop-shadow(0 0 4px var(--glow)) drop-shadow(0 0 10px var(--glow))}
+
+/* Variant 14 — RECALL — dim primary path, brighter lifted ghost edges
+   (ghost selector below). Reads as memories surfacing under the active
+   cognition: the back/skip ghosts pull focus, the forward path is quiet. */
+[data-variant="14"] .nn-edge{stroke:rgba(77,213,138,0.28);stroke-width:0.55}
+[data-variant="14"] .nn-edge--hot{stroke-width:1.6;stroke-dasharray:40 440;filter:drop-shadow(0 0 2.5px rgba(220,255,230,1)) drop-shadow(0 0 9px var(--glow)) drop-shadow(0 0 20px var(--glow)) drop-shadow(0 0 36px rgba(77,213,138,0.82))}
+[data-variant="14"] .nn-node{filter:drop-shadow(0 0 3px var(--glow));opacity:0.85}
+[data-variant="14"] .nn-node--flash{filter:drop-shadow(0 0 5px var(--glow)) drop-shadow(0 0 12px var(--glow))}
+
+/* Variant 15 — FOCUS — narrow precise stroke, tight single-tier hot
+   glow, decisive output. Laser-cognition: nothing dreamy, ghosts kept
+   slight, output column burns sharp. */
+[data-variant="15"] .nn-edge{stroke:rgba(77,213,138,0.47);stroke-width:0.6}
+[data-variant="15"] .nn-edge--hot{stroke-width:1.45;stroke-dasharray:50 400;stroke-linecap:butt;filter:drop-shadow(0 0 2.5px rgba(220,255,230,1)) drop-shadow(0 0 8px var(--glow)) drop-shadow(0 0 17px var(--glow)) drop-shadow(0 0 30px rgba(77,213,138,0.74))}
+[data-variant="15"] .nn-node{filter:drop-shadow(0 0 3px var(--glow));opacity:1}
+[data-variant="15"] .nn-node--flash{filter:drop-shadow(0 0 5px var(--glow)) drop-shadow(0 0 12px var(--glow)) drop-shadow(0 0 20px var(--glow))}
+
+/* Variant 16 — INTUIT — multi-head (cyan 2nd trace, ghost selector
+   below for dreamier ghosts), dim primary, soft outer halo. Reads as
+   non-linear association running underneath the forward signal. */
+[data-variant="16"] .nn-edge{stroke:rgba(77,213,138,0.18);stroke-width:0.55}
+[data-variant="16"] .nn-edge--hot{stroke-width:1.15;stroke-dasharray:36 430;stroke-linecap:round;filter:drop-shadow(0 0 4px var(--glow)) drop-shadow(0 0 11px var(--glow)) drop-shadow(0 0 22px rgba(77,213,138,0.4))}
+[data-variant="16"] .nn-node{filter:drop-shadow(0 0 4px var(--glow));opacity:0.88}
+[data-variant="16"] .nn-node--flash{filter:drop-shadow(0 0 6px var(--glow)) drop-shadow(0 0 14px var(--glow)) drop-shadow(0 0 22px var(--glow))}
+.neural-panel__viz[data-variant-bg="16"]::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(circle at 50% 50%, rgba(77,213,138,0.06), transparent 72%);
+  mix-blend-mode:screen;
+}
+
+/* === Hybrid family (17..20) — Living grammar × Focus precision.
+   Each variation picks a different subset of Cognition features to layer
+   onto Living's open feed-forward feel:
+     17 Tangent — pure precision, no ghosts, no differentiation
+     18 Arcline — Living + ghost shimmer (no diff)
+     19 Temper  — Living + differentiated layers (no ghosts)
+     20 Cinder  — full precision stack (butt + diff + ghosts + multi-head)
+   All share the Focus-style hot inner near-white core. Same 1.33s cycle. */
+
+/* Variant 17 — TANGENT — thought tracing a clean line. Living's forward
+   motion fired through Focus's precision lens. Butt cap, long dash, hot
+   inner core, two-tier outer glow. No associative undercurrent. */
+[data-variant="17"] .nn-edge{stroke:rgba(77,213,138,0.42);stroke-width:0.6}
+[data-variant="17"] .nn-edge--hot{stroke-width:1.4;stroke-dasharray:50 420;stroke-linecap:butt;filter:drop-shadow(0 0 2px rgba(220,255,230,1)) drop-shadow(0 0 8px var(--glow)) drop-shadow(0 0 17px var(--glow))}
+[data-variant="17"] .nn-node{filter:drop-shadow(0 0 3px var(--glow));opacity:0.95}
+[data-variant="17"] .nn-node--flash{filter:drop-shadow(0 0 5px var(--glow)) drop-shadow(0 0 12px var(--glow))}
+
+/* Variant 18 — ARCLINE — thought arc with associative shimmer underneath.
+   Round cap (Living's), uniform layer firing, ghost edges enabled but
+   slight (no differentiation lift). Three-tier glow with hot core. */
+[data-variant="18"] .nn-edge{stroke:rgba(77,213,138,0.42);stroke-width:0.6}
+[data-variant="18"] .nn-edge--hot{stroke-width:1.55;stroke-dasharray:36 410;stroke-linecap:round;filter:drop-shadow(0 0 2px rgba(220,255,230,0.95)) drop-shadow(0 0 6px var(--glow)) drop-shadow(0 0 14px var(--glow)) drop-shadow(0 0 24px rgba(77,213,138,0.55))}
+[data-variant="18"] .nn-node{filter:drop-shadow(0 0 3px var(--glow));opacity:0.95}
+[data-variant="18"] .nn-node--flash{filter:drop-shadow(0 0 5px var(--glow)) drop-shadow(0 0 12px var(--glow)) drop-shadow(0 0 20px var(--glow))}
+
+/* Variant 19 — TEMPER — refined thought. Living's open feel sharpened by
+   per-layer character (encoding tight, reasoning wide, decision thin).
+   Butt cap, hot core, two-tier glow, no ghosts. */
+[data-variant="19"] .nn-edge{stroke:rgba(77,213,138,0.45);stroke-width:0.6}
+[data-variant="19"] .nn-edge--hot{stroke-width:1.5;stroke-dasharray:44 410;stroke-linecap:butt;filter:drop-shadow(0 0 2.5px rgba(220,255,230,1)) drop-shadow(0 0 10px var(--glow)) drop-shadow(0 0 22px var(--glow))}
+[data-variant="19"] .nn-node{filter:drop-shadow(0 0 3px var(--glow));opacity:1}
+[data-variant="19"] .nn-node--flash{filter:drop-shadow(0 0 5px var(--glow)) drop-shadow(0 0 12px var(--glow)) drop-shadow(0 0 20px var(--glow))}
+
+/* Variant 20 — CINDER — surgical thought-tip. Every Focus precision
+   feature on Living's canvas: butt cap, narrowest stroke, longest dash,
+   brightest dormant baseline, hot core, three-tier glow, differentiated
+   layers, ghosts AND multi-head trail. The most dialed-in of the four. */
+[data-variant="20"] .nn-edge{stroke:rgba(77,213,138,0.5);stroke-width:0.6}
+[data-variant="20"] .nn-edge--hot{stroke-width:1.3;stroke-dasharray:56 380;stroke-linecap:butt;filter:drop-shadow(0 0 2.5px rgba(220,255,230,1)) drop-shadow(0 0 5px var(--glow)) drop-shadow(0 0 12px var(--glow)) drop-shadow(0 0 22px var(--glow))}
+[data-variant="20"] .nn-node{filter:drop-shadow(0 0 4px var(--glow));opacity:1}
+[data-variant="20"] .nn-node--flash{filter:drop-shadow(0 0 6px var(--glow)) drop-shadow(0 0 14px var(--glow)) drop-shadow(0 0 24px var(--glow))}
+
+/* Decisive output column — col-3 dst flash burns brighter on the
+   differentiated cognition variants. Stacks with the variant's flash filter
+   by overriding it for col 3 only. INSIGHT (13) gets the brightest spike
+   in the family — the eureka moment. */
+[data-variant="9"]  .nn-node--flash[data-flash-l="3"]{filter:drop-shadow(0 0 6px var(--glow)) drop-shadow(0 0 14px var(--glow)) drop-shadow(0 0 22px var(--glow))}
+[data-variant="10"] .nn-node--flash[data-flash-l="3"]{filter:drop-shadow(0 0 6px var(--glow)) drop-shadow(0 0 14px var(--glow)) drop-shadow(0 0 22px var(--glow))}
+[data-variant="11"] .nn-node--flash[data-flash-l="3"]{filter:drop-shadow(0 0 8px var(--glow)) drop-shadow(0 0 18px var(--glow)) drop-shadow(0 0 28px var(--glow))}
+[data-variant="12"] .nn-node--flash[data-flash-l="3"]{filter:drop-shadow(0 0 9px var(--glow)) drop-shadow(0 0 22px var(--glow)) drop-shadow(0 0 36px var(--glow))}
+[data-variant="13"] .nn-node--flash[data-flash-l="3"]{filter:drop-shadow(0 0 10px var(--glow)) drop-shadow(0 0 24px var(--glow)) drop-shadow(0 0 42px var(--glow))}
+[data-variant="14"] .nn-node--flash[data-flash-l="3"]{filter:drop-shadow(0 0 6px var(--glow)) drop-shadow(0 0 14px var(--glow)) drop-shadow(0 0 22px var(--glow))}
+[data-variant="15"] .nn-node--flash[data-flash-l="3"]{filter:drop-shadow(0 0 7px var(--glow)) drop-shadow(0 0 16px var(--glow)) drop-shadow(0 0 24px var(--glow))}
+[data-variant="16"] .nn-node--flash[data-flash-l="3"]{filter:drop-shadow(0 0 6px var(--glow)) drop-shadow(0 0 14px var(--glow)) drop-shadow(0 0 22px var(--glow))}
+[data-variant="19"] .nn-node--flash[data-flash-l="3"]{filter:drop-shadow(0 0 7px var(--glow)) drop-shadow(0 0 16px var(--glow)) drop-shadow(0 0 24px var(--glow))}
+[data-variant="20"] .nn-node--flash[data-flash-l="3"]{filter:drop-shadow(0 0 8px var(--glow)) drop-shadow(0 0 20px var(--glow)) drop-shadow(0 0 32px var(--glow))}
+
+/* (3) Ghost edges — backward (l→l-1) and skip-forward (l→l+2). Always-rendered
+   faint hairline; subtle pulse keyframe activates when data-active="1".
+   Backward ghosts get a slight cyan tint (returning signal); skip ghosts stay
+   green (forward jump).  Speed ≈ same 1.33s cycle but the ghost pulse rises
+   late and fades early so it reads as a shimmer rather than a wave. */
+.nn-edge--ghost{
+  fill:none;
+  stroke:rgba(77,213,138,0.14);
+  stroke-width:0.55;
+  stroke-dasharray:1.5 2.5;
+  pointer-events:none;
+  opacity:0.0;
+}
+.nn-edge--ghost--back{stroke:rgba(140,210,220,0.16)}
+.nn-edge--ghost--skip{stroke:rgba(77,213,138,0.18);stroke-dasharray:2.5 3}
+.nn-edge--ghost[data-active="1"]{
+  animation: nnGhostPulse 1.33s ease-in-out infinite both;
+}
+@keyframes nnGhostPulse{
+  0%   {opacity:0; stroke-dashoffset:0}
+  22%  {opacity:0.18}
+  50%  {opacity:0.42}
+  78%  {opacity:0.20}
+  95%  {opacity:0; stroke-dashoffset:-12}
+  100% {opacity:0}
+}
+/* Brighter dreamier ghost lift for the variations whose mind-feel is built
+   around the ghost layer pulling focus:
+     10 Reverie — soft dreamy associative undercurrent
+     14 Recall  — memories surfacing under a quiet primary path
+     16 Intuit  — non-linear association running underneath the multi-head
+   Variants 11/12/13/15 keep a slight lift so ghosts remain visible against
+   the heavier primary glow. */
+[data-variant="10"] .nn-edge--ghost,
+[data-variant="14"] .nn-edge--ghost,
+[data-variant="16"] .nn-edge--ghost{stroke-width:0.75;filter:drop-shadow(0 0 2.5px var(--glow))}
+[data-variant="10"] .nn-edge--ghost--back,
+[data-variant="14"] .nn-edge--ghost--back,
+[data-variant="16"] .nn-edge--ghost--back{stroke:rgba(140,210,220,0.22)}
+[data-variant="10"] .nn-edge--ghost--skip,
+[data-variant="14"] .nn-edge--ghost--skip,
+[data-variant="16"] .nn-edge--ghost--skip{stroke:rgba(77,213,138,0.24)}
+[data-variant="11"] .nn-edge--ghost,
+[data-variant="12"] .nn-edge--ghost,
+[data-variant="13"] .nn-edge--ghost,
+[data-variant="15"] .nn-edge--ghost,
+[data-variant="18"] .nn-edge--ghost,
+[data-variant="20"] .nn-edge--ghost{stroke-width:0.65;filter:drop-shadow(0 0 2px var(--glow))}
+
+/* (4) Multi-head — 2nd dimmer cyan pulse trail offset 80ms behind the
+   primary. Inherits the nn-flow keyframe via the .nn-edge--hot class match;
+   here we override delay + give it a slightly different stroke + dim
+   opacity so it reads as a 2nd attention head. Color/opacity gated to
+   data-active="1" so the global hot-edge gate at
+   .nn-edge--hot[data-active="0"] still wins when not firing.
+   Used by:
+     6  Shimmer (Living family) — iridescent dual-trace
+     11 Resolve / 12 Lucid (Cognition) — focused two-head
+     16 Intuit  (Cognition) — non-linear association underneath
+     20 Cinder  (Hybrid) — full precision stack with dual trace */
+[data-variant="6"]  .nn-edge--hot.nn-edge--hot--alt,
+[data-variant="11"] .nn-edge--hot.nn-edge--hot--alt,
+[data-variant="12"] .nn-edge--hot.nn-edge--hot--alt,
+[data-variant="16"] .nn-edge--hot.nn-edge--hot--alt,
+[data-variant="20"] .nn-edge--hot.nn-edge--hot--alt{
+  animation-delay: 0.08s !important;
+  stroke: rgba(170, 230, 255, 0.85);
+  stroke-width: 1.0;
+}
+[data-variant="6"]  .nn-edge--hot.nn-edge--hot--alt[data-active="1"],
+[data-variant="11"] .nn-edge--hot.nn-edge--hot--alt[data-active="1"],
+[data-variant="12"] .nn-edge--hot.nn-edge--hot--alt[data-active="1"],
+[data-variant="16"] .nn-edge--hot.nn-edge--hot--alt[data-active="1"],
+[data-variant="20"] .nn-edge--hot.nn-edge--hot--alt[data-active="1"]{
+  stroke-opacity: 0.55;
+  filter: drop-shadow(0 0 3px rgba(120, 200, 220, 0.7)) drop-shadow(0 0 8px rgba(120, 200, 220, 0.5));
+}
+
+/* Switcher button strip */
+.nn-switch{
+  margin-top:10px;
+  display:grid;grid-template-columns:repeat(4,1fr);gap:4px;
+  font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;
+}
+.nn-switch__b{
+  appearance:none;border:1px solid rgba(77,213,138,0.20);background:rgba(8,14,10,0.7);
+  color:var(--muted);padding:5px 4px 4px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:1px;
+  transition:border-color 0.15s, color 0.15s, background 0.15s;
+  border-radius:1px;line-height:1.1;font-family:inherit;
+}
+.nn-switch__b small{font-size:8px;letter-spacing:0.16em;color:var(--muted);opacity:0.7}
+.nn-switch__b:hover{border-color:rgba(77,213,138,0.55);color:var(--ink-2)}
+.nn-switch__b[aria-pressed="true"]{border-color:var(--lens);color:var(--lens);background:rgba(77,213,138,0.08);box-shadow:0 0 8px rgba(77,213,138,0.18) inset}
+.nn-switch__b[aria-pressed="true"] small{color:var(--lens);opacity:0.9}
+
+@media (max-width:820px){
+  .neural-panel{position:relative;right:auto;top:auto;transform:none;width:auto;margin:18px 22px 0}
+}
+
+/* O5 Reveal: smooth power-on sequence — frame draws, video glows in, copy follows */
+.hero__hud{position:relative}
+
+/* HUD frame entrance — applied to the wrapper so .hud transform stays free for parallax */
+.hero__hud.hud-stereo{
+  animation: hudFrameIn 1.1s cubic-bezier(.22,.8,.32,1) 0.05s both;
+}
+@keyframes hudFrameIn{
+  0%   {opacity:0; transform: scale(0.96); filter: blur(6px)}
+  60%  {opacity:1; filter: blur(0)}
+  100% {opacity:1; filter: blur(0)}
+}
+
+/* HUD bar + prompt slide in slightly after frame */
+.hud__bar{ animation: barFadeIn 0.8s cubic-bezier(.22,.8,.32,1) 0.55s both }
+.hud__prompt{ animation: barFadeIn 0.8s cubic-bezier(.22,.8,.32,1) 0.7s both }
+@keyframes barFadeIn{
+  from{opacity:0; transform: translateY(-4px)}
+  to  {opacity:1; transform: translateY(0)}
+}
+
+/* Video reveal: CRT power-on — vertical pinch expanding to full, brightness ramp */
+.hud--video .hud__video{
+  animation: screenWake 1.6s cubic-bezier(.22,.8,.32,1) 0.5s both;
+}
+@keyframes screenWake{
+  0%   {clip-path: inset(48% 0 48% 0); filter: brightness(1.6) saturate(0)}
+  35%  {clip-path: inset(48% 0 48% 0); filter: brightness(2.2) saturate(0)}
+  55%  {clip-path: inset(0 0 0 0);     filter: brightness(1.8) saturate(0.4)}
+  80%  {clip-path: inset(0 0 0 0);     filter: brightness(1.1) saturate(0.95)}
+  100% {clip-path: inset(0 0 0 0);     filter: brightness(1) saturate(1)}
+}
+/* Single sweeping highlight at the moment the screen "snaps" open */
+.hud--video .hud__video::before{
+  content:'';
+  position:absolute;
+  left:0; right:0;
+  top:50%;
+  height:2px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.95), transparent);
+  box-shadow: 0 0 24px rgba(255,255,255,0.7), 0 0 40px var(--glow);
+  z-index:3;
+  pointer-events:none;
+  opacity:0;
+  animation: snapLine 1.6s cubic-bezier(.22,.8,.32,1) 0.5s both;
+}
+@keyframes snapLine{
+  0%   {opacity:0;  transform: scaleX(0.2); top:50%; height:1px}
+  30%  {opacity:1;  transform: scaleX(1); top:50%; height:2px}
+  55%  {opacity:0.9; top:0%}
+  56%  {opacity:0.9; top:100%}
+  100% {opacity:0; top:100%}
+}
+
+/* Copy + caption stagger in after video lands */
+.hero__copy{ animation: copyFadeIn 1.0s cubic-bezier(.22,.8,.32,1) 1.4s both }
+.hero__hud .hud-cap{ animation: copyFadeIn 1.0s cubic-bezier(.22,.8,.32,1) 1.6s both }
+@keyframes copyFadeIn{
+  from{opacity:0; transform: translateY(10px)}
+  to  {opacity:1; transform: translateY(0)}
+}
+/* Panels need to preserve their translateY(-50%) centering after the fade */
+.agent-panel,.neural-panel{ animation-name: panelFadeIn !important }
+@keyframes panelFadeIn{
+  from{opacity:0; transform: translateY(calc(-50% + 10px)) scale(0.7)}
+  to  {opacity:1; transform: translateY(-50%) scale(0.7)}
+}
+@media (max-width:820px){
+  .agent-panel,.neural-panel{ animation-name: copyFadeIn !important }
+}
+
+/* Timeline-driven mode: panels are CSS-flipped between states. */
+.agent-panel.is-timeline-driven .wave i { animation-play-state: paused; }
+.agent-panel.is-timeline-driven.is-state-listening .wave i { animation-play-state: running; }
+.agent-panel.is-timeline-driven.is-state-thinking .wave i {
+  animation-play-state: running;
+  animation-duration: 2.4s;
+  opacity: 0.55;
+}
+.agent-panel.is-timeline-driven.is-state-responding .wave i { /* gentle, biased forward */ }
+
+.neural-panel.is-timeline-driven { opacity: 0.35; }
+.neural-panel.is-timeline-driven.is-state-thinking,
+.neural-panel.is-timeline-driven.is-state-responding,
+.neural-panel.is-timeline-driven[data-overlay]:not([data-overlay=""]) { opacity: 1; }
+
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="lens-tint" color-interpolation-filters="sRGB">
+    <feColorMatrix type="matrix" values="
+      0.060 0.118 0.022 0 0
+      0.246 0.484 0.090 0 0
+      0.135 0.266 0.050 0 0
+      0     0     0     1 0"/>
+  </filter>
+</svg>
+
+<header class="mast">
+  <div class="wrap mast__row">
+    <a class="mast__brand" href="#top"><img class="mast__mark" src="assets/ocuclaw-logo.png" alt="" width="45" height="45"/><span>OcuClaw <em>v0.1</em></span></a>
+    <nav class="mast__nav" style="font-size: 19px; color: rgb(255, 255, 255)">
+      <a href="#what">What</a>
+      <a href="#vows">Vows</a>
+      <a href="OcuClaw Setup.html">Setup</a>
+      <a href="OcuClaw Support.html">Support</a>
+      <a href="#get">Get it</a>
+    </nav>
+  </div>
+</header>
+
+<section id="top" class="hero">
+  <div class="hero__ceil" aria-hidden="true"></div><div class="hero__floor" aria-hidden="true"></div>
+  <div class="hero__world" aria-hidden="true"></div>
+  <div class="hero__field" id="heroField" aria-hidden="true"></div>
+  <div class="wrap hero__grid">
+    <div class="hero__hud hud-stereo">
+      <div class="hud-halo" id="hudHalo" aria-hidden="true"></div>
+      <div class="hud hud--video">
+        <div class="hud__bar">
+          <span>lens · L · live</span>
+          <span><b>⍜‿⍜</b></span>
+        </div>
+        <div class="hud__video">
+          <video src="uploads/menu-driven-new-session.webm" autoplay muted loop playsinline></video>
+        </div>
+        <div class="hud__prompt">falcor@g2 ~ $ <span class="hud__cur"></span></div>
+      </div>
+      <div class="hud-cap" style="text-align:center">live feed · <b>what your agent is doing</b> · no reload</div>
+    </div>
+
+    <div class="hero__copy">
+      <div class="hero__eyebrow"><span class="hero__dot"></span>For Even Realities G2</div>
+      <h1 class="hero__h">Your agent,<br/><em>online.</em></h1>
+      <p class="hero__sub">OcuClaw brings personal, agentic AI to your Even G2 — through an open-source gateway you run yourself.</p>
+      <div class="hero__ctas">
+        <a class="btn" href="{{EVEN_HUB_URL}}">Get on Even Hub <span>→</span></a>
+        <a class="btn btn--ghost" href="OcuClaw Setup.html">Setup</a>
+      </div>
+    </div>
+  </div>
+
+  <aside class="agent-panel" aria-label="Agent Status">
+    <div class="agent-panel__h"><span>Agent Status</span><b>···</b></div>
+    <div class="agent-panel__status">Listening<span class="agent-panel__cur"></span></div>
+    <div class="wave" id="agentWave"></div>
+    <div class="agent-panel__sub">···</div>
+  </aside>
+
+  <aside class="neural-panel" aria-label="Neural Net">
+    <div class="neural-panel__h"><span>Neural Net</span><b>···</b></div>
+    <div class="neural-panel__viz" id="nnViz"></div>
+  </aside>
+</section>
+
+<section id="what" class="sec">
+  <div class="wrap">
+    <div class="sec__eyebrow"><span>02</span> &nbsp; What it is</div>
+    <h2 class="what__h">A full AI chat interface, <em>on your G2s.</em></h2>
+    <div class="what__list">
+      <div class="what__item">
+        <div class="what__n">i · any model</div>
+        <h3 class="what__t">ChatGPT. Claude. Gemini. <em>Local.</em></h3>
+        <p class="what__d">Route to whichever model you prefer. Switch mid-conversation.</p>
+      </div>
+      <div class="what__item">
+        <div class="what__n">ii · two agents</div>
+        <h3 class="what__t">OcuClaw <em>and</em> Even AI.</h3>
+        <p class="what__d">Different defaults for each. Different personalities on the same pair of glasses.</p>
+      </div>
+      <div class="what__item">
+        <div class="what__n">iii · your server</div>
+        <h3 class="what__t">Runs on <em>your</em> machine.</h3>
+        <p class="what__d">Your keys. Your data. Your memory, persisted where you can see it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="vows" class="sec">
+  <div class="wrap">
+    <div class="sec__eyebrow"><span>03</span> &nbsp; Three vows</div>
+    <h2 class="vows__h">It's yours. <em>Structurally.</em></h2>
+    <div class="vows__grid">
+      <div class="vow"><div class="vow__n">i</div><h3 class="vow__t"><em>Private</em> by design.</h3><p class="vow__d">Nothing routes through us, because there is no us in the chain.</p></div>
+      <div class="vow"><div class="vow__n">ii</div><h3 class="vow__t"><em>Open</em> source.</h3><p class="vow__d">OpenClaw on GitHub, permissive license. Read it. Fork it. Run it.</p></div>
+      <div class="vow"><div class="vow__n">iii</div><h3 class="vow__t"><em>Free</em> forever.</h3><p class="vow__d">Zero dollars. The only bill comes from model providers you chose.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="get" class="end">
+  <div class="wrap">
+    <h2 class="end__h">Fifteen minutes from here<br/>to <em>on your face.</em></h2>
+    <div class="end__ctas">
+      <a class="btn" href="{{EVEN_HUB_URL}}">Get on Even Hub <span>→</span></a>
+      <a class="btn btn--ghost" href="OcuClaw Setup.html">Read the guide</a>
+    </div>
+    <div class="end__meta">
+      <a href="{{OPENCLAW_GITHUB_URL}}">Source</a><span>·</span>
+      <a href="{{DISCORD_URL}}">Discord</a><span>·</span>
+      <a href="OcuClaw Setup.html">Setup</a><span>·</span>
+      <a href="OcuClaw Support.html">Support</a>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="wrap foot__row">
+    <span>OcuClaw · v0.1</span>
+    <span>not affiliated with Even Realities</span>
+  </div>
+</footer>
+
+<aside class="tweaks" id="tweaks" aria-label="Tweaks">
+  <div class="tweaks__head"><span>◆ Stereo / Parallax</span><span style="color:var(--muted);font-size:9.5px">v2</span></div>
+  <div class="tweaks__row">
+    <label>Stereo sep <span class="tweaks__val" id="tw-sep-val">3.0</span></label>
+    <input type="range" id="tw-sep" min="0" max="14" step="0.5" value="3">
+  </div>
+  <div class="tweaks__row">
+    <label>Stereo follow <span class="tweaks__val" id="tw-sepf-val">2.5</span></label>
+    <input type="range" id="tw-sepf" min="0" max="8" step="0.25" value="2.5">
+  </div>
+  <div class="tweaks__row">
+    <label>Tilt <span class="tweaks__val" id="tw-tilt-val">3°</span></label>
+    <input type="range" id="tw-tilt" min="0" max="14" step="0.5" value="3">
+  </div>
+  <div class="tweaks__row">
+    <label>HUD shift <span class="tweaks__val" id="tw-shift-val">6px</span></label>
+    <input type="range" id="tw-shift" min="0" max="30" step="1" value="6">
+  </div>
+  <div class="tweaks__row">
+    <label>Depth strength <span class="tweaks__val" id="tw-depth-val">1.0×</span></label>
+    <input type="range" id="tw-depth" min="0" max="3" step="0.1" value="1">
+  </div>
+  <div class="tweaks__row">
+    <label>Dot density <span class="tweaks__val" id="tw-dens-val">120</span></label>
+    <input type="range" id="tw-dens" min="0" max="300" step="10" value="120">
+  </div>
+  <div class="tweaks__row">
+    <label>Layers <span class="tweaks__val" id="tw-layers-val">5</span></label>
+    <input type="range" id="tw-layers" min="1" max="5" step="1" value="5">
+  </div>
+  <div class="tweaks__row">
+    <label>Halo dots <span class="tweaks__val" id="tw-halo-val">28</span></label>
+    <input type="range" id="tw-halo" min="0" max="80" step="2" value="28">
+  </div>
+  <div class="tweaks__row">
+    <label>Glow <span class="tweaks__val" id="tw-glow-val">1.0×</span></label>
+    <input type="range" id="tw-glow" min="0" max="2.5" step="0.1" value="1">
+  </div>
+  <div class="tweaks__row">
+    <label>Drift</label>
+    <select id="tw-drift">
+      <option value="on">On</option>
+      <option value="off">Off</option>
+    </select>
+  </div>
+  <div class="tweaks__row">
+    <label>Serif</label>
+    <select id="tw-serif">
+      <optgroup label="Serif">
+        <option value="Instrument Serif">Instrument Serif</option>
+        <option value="Newsreader">Newsreader</option>
+        <option value="Fraunces">Fraunces</option>
+        <option value="EB Garamond">EB Garamond</option>
+        <option value="Playfair Display">Playfair Display</option>
+        <option value="Times New Roman">Times New Roman</option>
+      </optgroup>
+      <optgroup label="Pixel / Mono">
+        <option value="Pixelify Sans">Pixelify Sans</option>
+        <option value="VT323">VT323</option>
+        <option value="Silkscreen">Silkscreen</option>
+        <option value="JetBrains Mono">JetBrains Mono</option>
+        <option value="Major Mono Display">Major Mono Display</option>
+      </optgroup>
+    </select>
+  </div>
+</aside>
+
+<script>
+(function(){
+  var body = document.getElementById('hudBody');
+  var emoEl = document.getElementById('emo');
+  if (!body) return;
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var script = [
+    {g:'▸', t:'matty › <b>flight in 5h</b> · booking · OOO', e:'⍜‿⍜'},
+    {g:'∴', t:'agent · <b>thinking</b>', e:'⍜︵⍜'},
+    {g:'↗', t:'browsing united.com', e:'⍜◠⍜'},
+    {g:'⏵', t:'running · <b>skills/check-in</b>', e:'⍜▿⍜'},
+    {g:'✓', t:'terminal 4 · gate B12 · <b>boarded</b>', e:'⍜◡⍜'},
+    {g:'⏵', t:'drafting · <b>reply to mom</b>', e:'⍜▿⍜'},
+    {g:'✓', t:'OOO · until 20:00', e:'⍜◡⍜'},
+    {g:'✓', t:'reminder @ 10:10', e:'⍜◡⍜'},
+    {g:'◆', t:'<b>all done.</b>', e:'⍜‿⍜'},
+  ];
+  var MAX = 5, idx = 0, q = [];
+  function render(){
+    body.innerHTML = '';
+    q.forEach(function(item){
+      var row = document.createElement('div');
+      row.className = 'hud__line';
+      var ts = '08:4'+((1+(item.ix%6)))+':'+String(item.ix*7%60).padStart(2,'0');
+      row.innerHTML = '<span class="hud__ts">'+ts+'</span><span class="hud__g">'+item.g+'</span><span class="hud__ev">'+item.t+'</span>';
+      body.appendChild(row);
+    });
+  }
+  function tick(){
+    var s = script[idx % script.length];
+    q.push({g:s.g,t:s.t,ix:idx});
+    if (q.length > MAX) q.shift();
+    if (emoEl) emoEl.innerHTML = '<b>'+s.e+'</b>';
+    render();
+    idx++;
+  }
+  tick();
+  if (!reduced) setInterval(tick, 1400);
+  else { while (q.length < MAX) tick(); }
+})();
+</script>
+
+<script>
+// ---------- Stereo / Parallax / Tweaks ----------
+(function(){
+  var TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "sep": 6.5,
+    "sepFollow": 4.25,
+    "tilt": 11.5,
+    "shift": 8,
+    "depth": 1.1,
+    "density": 260,
+    "layers": 5,
+    "halo": 40,
+    "glow": 1.3,
+    "drift": "on",
+    "serif": "Pixelify Sans"
+  }/*EDITMODE-END*/;
+
+  var state = Object.assign({}, TWEAK_DEFAULTS);
+  var hero = document.getElementById('top');
+  var field = document.getElementById('heroField');
+  var halo = document.getElementById('hudHalo');
+  var hud = hero.querySelector('.hud');
+  var stereo = hero.querySelector('.hud-stereo');
+  var world = hero.querySelector('.hero__world');
+  var root = document.documentElement;
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // --- seeded RNG so dot positions are stable across rebuilds within a layer ---
+  function mulberry(s){return function(){var t=s+=0x6d2b79f5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296;};}
+
+  function buildField(){
+    field.innerHTML = '';
+    var L = state.layers;
+    var total = state.density;
+    if (total === 0 || L === 0) return;
+    // distribute dots across L layers, deeper layers slightly fewer
+    var weights = []; var sum = 0;
+    for (var i=0;i<L;i++){ var w = 1 + (L-1-i)*0.35; weights.push(w); sum += w; }
+    var per = weights.map(function(w){ return Math.round(total * w / sum); });
+
+    var rng = mulberry(1337);
+    for (var li=0; li<L; li++){
+      var depthIdx = Math.round(li * 4 / Math.max(1, L-1)); // 0..4
+      var layer = document.createElement('div');
+      layer.className = 'hero__layer';
+      layer.dataset.depth = depthIdx;
+      layer.dataset.layer = li;
+      var n = per[li];
+      var html = '';
+      for (var k=0;k<n;k++){
+        var x = rng()*100;
+        var y = rng()*100;
+        var dur = (10 + rng()*12).toFixed(1);
+        var dly = (-rng()*15).toFixed(1);
+        html += '<i style="left:'+x.toFixed(2)+'%;top:'+y.toFixed(2)+'%;--dur:'+dur+'s;--dly:'+dly+'s"></i>';
+      }
+      layer.innerHTML = html;
+      field.appendChild(layer);
+    }
+  }
+
+  function buildHalo(){
+    halo.innerHTML = '';
+    var n = state.halo;
+    if (n === 0) return;
+    var rng = mulberry(7);
+    var html = '';
+    for (var i=0;i<n;i++){
+      // ring distribution: angle 0..360, radius 6..52% of halo bbox (which extends 40px outside HUD)
+      var ang = rng()*Math.PI*2;
+      var rad = 30 + rng()*30; // px from center of halo box, but halo is sized to hud + 40 padding so use percent
+      // place via CSS percent within the halo box
+      var px = 50 + Math.cos(ang) * (38 + rng()*16);
+      var py = 50 + Math.sin(ang) * (38 + rng()*22);
+      var cls = '';
+      var r = rng();
+      if (r < 0.35) cls = 'tiny';
+      else if (r < 0.6) cls = 'dim';
+      var dly = (-rng()*4).toFixed(2);
+      html += '<i class="'+cls+'" style="left:'+px.toFixed(2)+'%;top:'+py.toFixed(2)+'%;--dly:'+dly+'s"></i>';
+    }
+    halo.innerHTML = html;
+  }
+
+  function applyStatic(){
+    // glow scaling via custom property on root
+    root.style.setProperty('--glow', 'rgba(77,213,138,'+(0.4*state.glow).toFixed(3)+')');
+    // drift on/off
+    field.style.setProperty('animation-play-state', state.drift==='on' ? 'running' : 'paused');
+    field.querySelectorAll('i').forEach(function(el){
+      el.style.animationPlayState = state.drift==='on' ? 'running' : 'paused';
+    });
+    halo.querySelectorAll('i').forEach(function(el){
+      el.style.animationPlayState = state.drift==='on' ? 'running' : 'paused';
+    });
+    // serif
+    root.style.setProperty('--serif', '"'+state.serif+'", Georgia, serif');
+  }
+
+  // --- mouse / orientation parallax ---
+  var raf, tx=0, ty=0;
+  function applyMotion(){
+    raf = null;
+    var d = state.depth;
+    if (world) world.style.transform = 'translate3d('+(-tx*24*d)+'px,'+(-ty*18*d)+'px,0)';
+    // each layer translates more the deeper it is conceptually — but for parallax illusion, BACKGROUND layers should move LESS, foreground MORE.
+    // depth attr 0 = far, 4 = near. So multiplier increases with depth.
+    var layers = field.children;
+    for (var i=0;i<layers.length;i++){
+      var lay = layers[i];
+      var dp = parseInt(lay.dataset.depth,10);
+      var L = layers.length;
+      // base mult 6..50px range scaled by depth strength
+      var m = (10 + dp*14) * d;
+      lay.style.transform = 'translate3d('+(-tx*m)+'px,'+(-ty*m*0.75)+'px,0)';
+    }
+    // halo follows HUD tilt (subtler)
+    if (halo) halo.style.transform = 'translate3d('+(tx*8*d)+'px,'+(ty*8*d)+'px,0)';
+    // HUD perspective tilt + shift
+    if (hud) hud.style.transform = 'perspective(900px) rotateY('+(tx*state.tilt)+'deg) rotateX('+(-ty*state.tilt)+'deg) translate3d('+(tx*state.shift)+'px,'+(ty*state.shift)+'px,0)';
+    // stereo separation
+    if (stereo){
+      var sep = state.sep + tx * state.sepFollow;
+      stereo.style.setProperty('--stx', (-sep).toFixed(2)+'px');
+      stereo.style.setProperty('--stx2', sep.toFixed(2)+'px');
+    }
+  }
+
+  if (!reduced){
+    hero.addEventListener('mousemove', function(e){
+      var r = hero.getBoundingClientRect();
+      tx = (e.clientX - r.left)/r.width - 0.5;
+      ty = (e.clientY - r.top)/r.height - 0.5;
+      if (!raf) raf = requestAnimationFrame(applyMotion);
+    }, {passive:true});
+    hero.addEventListener('mouseleave', function(){ tx=0; ty=0; if (!raf) raf = requestAnimationFrame(applyMotion); });
+    window.addEventListener('deviceorientation', function(e){
+      if (e.gamma == null) return;
+      tx = Math.max(-0.5, Math.min(0.5, e.gamma/45));
+      ty = Math.max(-0.5, Math.min(0.5, (e.beta-30)/45));
+      if (!raf) raf = requestAnimationFrame(applyMotion);
+    }, {passive:true});
+  }
+
+  // --- tweaks panel wiring ---
+  var panel = document.getElementById('tweaks');
+  var ctl = {
+    sep: ['tw-sep','tw-sep-val', function(v){return v.toFixed(1);}, parseFloat],
+    sepFollow: ['tw-sepf','tw-sepf-val', function(v){return v.toFixed(2);}, parseFloat],
+    tilt: ['tw-tilt','tw-tilt-val', function(v){return v.toFixed(1)+'°';}, parseFloat],
+    shift: ['tw-shift','tw-shift-val', function(v){return v+'px';}, function(x){return parseInt(x,10);}],
+    depth: ['tw-depth','tw-depth-val', function(v){return v.toFixed(1)+'×';}, parseFloat],
+    density: ['tw-dens','tw-dens-val', function(v){return v;}, function(x){return parseInt(x,10);}],
+    layers: ['tw-layers','tw-layers-val', function(v){return v;}, function(x){return parseInt(x,10);}],
+    halo: ['tw-halo','tw-halo-val', function(v){return v;}, function(x){return parseInt(x,10);}],
+    glow: ['tw-glow','tw-glow-val', function(v){return v.toFixed(1)+'×';}, parseFloat]
+  };
+
+  function set(k, v, opts){
+    state[k] = v;
+    if (ctl[k]){
+      var valEl = document.getElementById(ctl[k][1]);
+      if (valEl) valEl.textContent = ctl[k][2](v);
+    }
+    if (k === 'density' || k === 'layers') buildField();
+    if (k === 'halo') buildHalo();
+    applyStatic();
+    applyMotion();
+    if (!opts || !opts.silent){
+      var edit = {}; edit[k] = v;
+      try { window.parent.postMessage({type:'__edit_mode_set_keys', edits:edit}, '*'); } catch(e){}
+    }
+  }
+
+  // bind sliders
+  Object.keys(ctl).forEach(function(k){
+    var input = document.getElementById(ctl[k][0]);
+    if (!input) return;
+    input.value = state[k];
+    var valEl = document.getElementById(ctl[k][1]);
+    if (valEl) valEl.textContent = ctl[k][2](state[k]);
+    input.addEventListener('input', function(e){ set(k, ctl[k][3](e.target.value)); });
+  });
+
+  // selects
+  var driftSel = document.getElementById('tw-drift');
+  driftSel.value = state.drift;
+  driftSel.addEventListener('change', function(e){ set('drift', e.target.value); });
+
+  var serifSel = document.getElementById('tw-serif');
+  serifSel.value = state.serif;
+  serifSel.addEventListener('change', function(e){ set('serif', e.target.value); });
+
+  // initial build
+  buildField();
+  buildHalo();
+  applyStatic();
+  applyMotion();
+
+  // edit-mode protocol — listener FIRST
+  window.addEventListener('message', function(e){
+    var d = e && e.data; if (!d || !d.type) return;
+    if (d.type === '__activate_edit_mode') panel.classList.add('is-on');
+    else if (d.type === '__deactivate_edit_mode') panel.classList.remove('is-on');
+  });
+  try { window.parent.postMessage({type:'__edit_mode_available'}, '*'); } catch(e){}
+})();
+</script>
+<script>
+
+(function(){
+  var hero = document.getElementById('top');
+  hero.addEventListener('mousemove', function(e){
+    var r = hero.getBoundingClientRect();
+    var cx = (e.clientX - r.left)/r.width - 0.5;
+    var floor = hero.querySelector('.hero__floor');
+    var ceil = hero.querySelector('.hero__ceil');
+    if (floor) floor.style.transform = 'translateX(calc(-50% + '+(cx*-30)+'px)) rotateX(72deg)';
+    if (ceil) ceil.style.transform = 'translateX(calc(-50% + '+(cx*-30)+'px)) rotateX(-72deg)';
+  }, {passive:true});
+})();
+
+</script>
+<script>
+// Build agent waveform bars
+(function(){
+  var w = document.getElementById('agentWave');
+  if (!w) return;
+  var n = 48;
+  var html = '';
+  for (var i=0;i<n;i++){
+    var h = 4 + Math.abs(Math.sin(i*0.42)) * 24 + Math.random()*5;
+    var d = (Math.random()*1.4).toFixed(2);
+    html += '<i style="--h:'+h.toFixed(0)+'px;animation-delay:'+d+'s"></i>';
+  }
+  w.innerHTML = html;
+})();
+
+// Neural Net visualization — DRIFT + 8 visual variants
+(function(){
+  var viz = document.getElementById('nnViz');
+  if (!viz) return;
+  var W = 380, H = 200;
+
+  // Gated by the timeline driver: pulses/ghosts only fire when `running` is true.
+  // Drift keeps running so the net doesn't look dead during idle frames.
+  //
+  // Start (false→true): rebuild the variant so the CSS animation epoch resets
+  // and the wave always begins at col 0 — never mid-pulse.
+  // Stop  (true→false): we DEFER flipping `running` until the next col 0 tick.
+  // That moment is the start of a new cycle, which means the previous cycle's
+  // wave is fully composed by then (cols 1..nTrans-1 have all ticked under
+  // running=true, completing the left→right pass across every column including
+  // the rightmost). Only then do we flip running=false; the existing dimming
+  // wave (col 0 fades → col 1 fades → … → final col fades) runs cleanly on the
+  // cycle that would have started, so the in-flight pulse always reaches the
+  // final column before silence.
+  var running = true;
+  var pendingStop = false;
+  window.__nnSetRunning = function(on){
+    var next = !!on;
+    if (next){
+      // Cancel any deferred stop and resume if needed.
+      pendingStop = false;
+      if (running) return;
+      running = true;
+      buildVariant(currentVariant);
+    } else {
+      if (!running) return;
+      pendingStop = true; // honored at the next col 0 tick inside applyCol()
+    }
+  };
+
+  function rand(seed){var s=seed;return function(){s=(s*9301+49297)%233280;return s/233280}}
+
+  // Active network reference for the motion loop.
+  var currentNet = null;
+  var motionStart = performance.now();
+
+  // Style-variant state. Speed/pulse/randomness held constant across all 8;
+  // only the visual presentation (path geometry, node shape, drift, glow,
+  // background) changes. variantTimers tracks setInterval/setTimeout IDs so
+  // setVariant() can tear down cleanly before rebuilding.
+  var currentVariant = 9;
+  var variantTimers = [];
+  function clearVariantTimers(){
+    variantTimers.forEach(function(h){
+      if (h && h.kind === 'i') clearInterval(h.id);
+      else if (h && h.kind === 't') clearTimeout(h.id);
+    });
+    variantTimers = [];
+  }
+  // Geometry mode override read by edgePath(): 'curve' | 'straight' | 'manhattan'
+  var edgeGeom = 'curve';
+
+  // Build a feedforward network. Returns {nodes, edges, layers}
+  // opts.pad         — left/right padding (controls column gap; smaller = denser)
+  // opts.connect     — 'full' (default) or 'local' (sliding receptive-field window)
+  // opts.window      — window size for local connections (default 3)
+  // opts.skip        — true to add skip connections (layer i → i+2)
+  // opts.skipFrac    — fraction of skip pairs to keep (default 0.3)
+  // opts.skipNonce   — stable seed for skip pair selection (default 1)
+  function buildFF(layerSizes, opts){
+    opts = opts || {};
+    var pad = opts.pad != null ? opts.pad : 22;
+    var nodes = [];
+    var nodesByLayer = [];
+    var gap = (W - pad*2) / (layerSizes.length-1);
+    layerSizes.forEach(function(n,li){
+      var yGap = (H-30) / (n+1);
+      var arr = [];
+      for (var i=0;i<n;i++){
+        var by = 15 + yGap*(i+1);
+        var bx = pad + li*gap;
+        var node = {x:bx, y:by, x0:bx, y0:by, l:li, i:i};
+        nodes.push(node);
+        arr.push(node);
+      }
+      nodesByLayer.push(arr);
+    });
+    var edges = [];
+    for (var li=0;li<layerSizes.length-1;li++){
+      var src = nodesByLayer[li];
+      var dst = nodesByLayer[li+1];
+      if (opts.connect === 'local'){
+        var win = opts.window || 3;
+        var halfW = Math.floor(win/2);
+        src.forEach(function(a, ai){
+          var center = (dst.length === 1) ? 0
+            : Math.round(ai * (dst.length-1) / Math.max(1, src.length-1));
+          for (var off = -halfW; off <= halfW; off++){
+            var bi = center + off;
+            if (bi >= 0 && bi < dst.length){
+              edges.push({x1:a.x,y1:a.y,x2:dst[bi].x,y2:dst[bi].y,from:a,to:dst[bi]});
+            }
+          }
+        });
+      } else {
+        src.forEach(function(a){ dst.forEach(function(b){
+          edges.push({x1:a.x,y1:a.y,x2:b.x,y2:b.y,from:a,to:b});
+        });});
+      }
+    }
+    if (opts.skip){
+      var skipFrac = opts.skipFrac != null ? opts.skipFrac : 0.3;
+      var skipRng = rand(opts.skipNonce || 1);
+      for (var li2=0;li2<layerSizes.length-2;li2++){
+        var src2 = nodesByLayer[li2];
+        var dst2 = nodesByLayer[li2+2];
+        src2.forEach(function(a){ dst2.forEach(function(b){
+          if (skipRng() < skipFrac){
+            edges.push({x1:a.x,y1:a.y,x2:b.x,y2:b.y,from:a,to:b,skip:true});
+          }
+        });});
+      }
+    }
+    return {nodes:nodes, edges:edges, layers:nodesByLayer};
+  }
+
+  // Pick which edges fire this cycle — enforces causality (a node only
+  // fires outgoing if it received incoming) and biases toward convergence
+  // so destinations tend to get multiple incoming pulses, giving a denser look.
+  // Last layer is guaranteed to receive at least one incoming edge per node.
+  function pickFiring(net, rng, opts){
+    opts = opts || {};
+    var firedEdges = new Set();
+    var flashCount = {};
+    var bySrc = {}, byDst = {};
+    net.edges.forEach(function(e){
+      var sk = e.from.l+','+e.from.i, dk = e.to.l+','+e.to.i;
+      (bySrc[sk] = bySrc[sk] || []).push(e);
+      (byDst[dk] = byDst[dk] || []).push(e);
+    });
+    var L = net.layers.length;
+    var lastLayerIdx = L - 1;
+    var active = {};
+    net.layers[0].forEach(function(n){ active[n.l+','+n.i] = true; });
+
+    for (var li = 0; li < L - 1; li++){
+      var sources = net.layers[li];
+      var nextLayerNodes = net.layers[li+1];
+      var hotFracBase = (opts.hotFrac != null) ? opts.hotFrac : 0.6;
+      // (1) Layer-differentiated character: each layer-step fires with its
+      // own personality — l0→l1 tight (encoding), l1→l2 wide (reasoning),
+      // l2→l3 thin (decisive output). 'flat' uses the same heavy-tail at
+      // every step (default original behavior).
+      var profile = opts.layerProfile || 'flat';
+      var lastIdx = L - 2;
+
+      var firingCounts = {};
+
+      sources.forEach(function(n){
+        if (!active[n.l+','+n.i]) return;
+        // (A) Per-source hot dests: each source picks its OWN random hot
+        // subset AND its OWN subset SIZE — drifts 25%-90% of the dest column
+        // per cycle, per source. Two siblings now disagree on both target
+        // identity and target count, so cycles never look like reruns.
+        var hotFracJitter = 0.25 + rng() * 0.65;
+        var hotCount = Math.max(1, Math.round(nextLayerNodes.length * hotFracJitter));
+        var dstShuffled = nextLayerNodes.slice().sort(function(){return rng()-0.5});
+        var hotDsts = {};
+        dstShuffled.slice(0, hotCount).forEach(function(d){ hotDsts[d.l+','+d.i] = true; });
+
+        var arr = (bySrc[n.l+','+n.i] || []).slice();
+        arr.sort(function(a,b){
+          var ah = hotDsts[a.to.l+','+a.to.i] ? 1 : 0;
+          var bh = hotDsts[b.to.l+','+b.to.i] ? 1 : 0;
+          if (ah !== bh) return bh - ah;
+          return rng() - 0.5;
+        });
+
+        // (C) Heavy-tailed fan-out — three bands controlled by `roll`. Tuned
+        // sparser than the prior pass: most sources fire at 1–2 dests, the
+        // mod band keeps 30–60% of the dest column, and the wide band is
+        // rare. With a 5-wide dest column this typically leaves 1–3 dests
+        // lit per cycle instead of all 4–5.
+        //   flat              : thin 0..0.40, mod 0.40..0.85, wide 0.85..1.00
+        //   diff li=0 enc     : thin 0..0.30, mod 0.30..0.80
+        //   diff middle reas. : thin 0..0.30, mod 0.30..0.70 (widest variance)
+        //   diff lastIdx dec. : thin 0..0.55, mod 0.55..1.01 (thin-leaning)
+        var roll = rng();
+        var keep, thin, wide;
+        if (profile === 'differentiated'){
+          if (li === 0){
+            // encoding: mostly mod, some thin.
+            thin = 0.30; wide = 0.85;
+          } else if (li === lastIdx){
+            // decision: thin-leaning, no wide band.
+            thin = 0.55; wide = 1.01;
+          } else {
+            // reasoning: widest variance.
+            thin = 0.30; wide = 0.75;
+          }
+        } else {
+          thin = 0.40; wide = 0.85;
+        }
+        if (roll < thin){
+          // thin band: 1 or 2 edges per source
+          keep = Math.min(arr.length, 1 + (rng() < 0.5 ? 0 : 1));
+        } else if (roll < wide){
+          // mod band: 30%–60% of dest column
+          keep = Math.max(1, Math.round(arr.length * (0.30 + rng()*0.30)));
+        } else {
+          // wide band: 65%–95% of dest column
+          keep = Math.max(2, Math.round(arr.length * (0.65 + rng()*0.30)));
+        }
+        keep = Math.min(arr.length, keep);
+
+        // Middle-column sparseness: when the destination column is one of
+        // the 5-wide middle layers (cols 1..L-2), trim keep by ~25% so the
+        // wide columns don't light all 5 nodes every cycle.
+        var targetCol = li + 1;
+        if (targetCol >= 1 && targetCol <= L - 2){
+          keep = Math.max(1, Math.round(keep * 0.75));
+        }
+
+        arr.slice(0, keep).forEach(function(e){
+          firedEdges.add(e);
+          var dk = e.to.l+','+e.to.i;
+          firingCounts[dk] = (firingCounts[dk]||0) + 1;
+        });
+      });
+
+      // No destination-side clamp: each source's heavy-tail keep above is
+      // the only density gate, so edges spread across the full dest column.
+      Object.keys(firingCounts).forEach(function(k){ active[k] = true; });
+    }
+
+    firedEdges.forEach(function(e){
+      var nk = e.to.l+','+e.to.i;
+      flashCount[nk] = (flashCount[nk]||0) + 1;
+    });
+    return {firedEdges:firedEdges, flashCount:flashCount};
+  }
+
+  // ===== DRIFT-anchor curvy-edge family =====
+  // Network shape [2,4,8,8] — 2 fans into 4 then propagates through two
+  // 8-wide tail layers. All 8 variants share:
+  //   - curvy cubic-Bezier path geometry (CURVE_SEED constant)
+  //   - traveling-dash activation grammar (nn-flow)
+  //   - tide drift mode underneath — slow geometric swell rides L→R
+  //     through the layers
+  //   - 1.98s base cycle (tightened from 2.1s — gap halved 0.24s → 0.13s)
+  //   - extended visible window per edge (59% of cycle) so each pulse's
+  //     absolute traversal time stays the same as it did at 2.1s/56%
+  // Variants differentiate along ONE delay-shape axis each: linear forward
+  // (DRIFT), linear backward (REVERSE), outer-in (CONVERGE), middle-out
+  // (EXPAND), even/odd row stagger (SHIMMER), edge-length-relative
+  // (GATHER), mod-3 row groups (TROIKA), per-layer center-row priority
+  // (FOCUS). None fire randomly.
+  var PULSE_SHAPE = [3,5,5,5,3];
+  var PULSE_PAD   = 14;
+  var RAPIDS_DENS = {minFrac:0.44, spanFrac:0.22, hotFrac:0.55};
+  // Stable per-edge curve seed shared across all curvy variants so the
+  // network's wiggle pattern stays consistent when switching variants —
+  // only the activation grammar changes, not the underlying shape.
+  var CURVE_SEED = 0xC0FFEE;
+  var CURVE_MAG  = 14; // perpendicular offset magnitude in viewBox units
+
+  // (3) Build a faint set of "ghost" edges — backward (l→l-1) and skip
+  // (l→l+2) — visualizing attention's bidirectional / non-local routing.
+  // Returns a stable, seeded subset; the per-cycle pulse picks a few of
+  // these to highlight at low opacity.
+  function buildGhostEdges(net, seed, perPair){
+    var rng = rand(seed != null ? seed : 0xBEEF);
+    var ghosts = [];
+    perPair = perPair || 3;
+    var L = net.layers.length;
+    // Backward edges from layer li → li-1
+    for (var li = 1; li < L; li++){
+      var cur = net.layers[li], prev = net.layers[li - 1];
+      var pairs = [];
+      cur.forEach(function(c){ prev.forEach(function(p){ pairs.push({from:c, to:p}); }); });
+      pairs.sort(function(){ return rng() - 0.5; });
+      pairs.slice(0, perPair).forEach(function(p){
+        ghosts.push({from:p.from, to:p.to, kind:'back'});
+      });
+    }
+    // Skip-forward edges from li → li+2
+    for (var li2 = 0; li2 < L - 2; li2++){
+      var src = net.layers[li2], dst = net.layers[li2 + 2];
+      var pairs2 = [];
+      src.forEach(function(s){ dst.forEach(function(d){ pairs2.push({from:s, to:d}); }); });
+      pairs2.sort(function(){ return rng() - 0.5; });
+      pairs2.slice(0, Math.max(1, Math.floor(perPair / 2))).forEach(function(p){
+        ghosts.push({from:p.from, to:p.to, kind:'skip'});
+      });
+    }
+    // Apply gentle curve seed so they share visual language with forward edges
+    ghosts.forEach(function(g, i){
+      g.curveA1 = (rng()*2 - 1) * CURVE_MAG * 0.7;
+      g.curveA2 = (rng()*2 - 1) * CURVE_MAG * 0.7;
+      g._gid = 'g'+i;
+    });
+    return ghosts;
+  }
+
+  // Apply a stable per-edge cubic-Bezier curve. Two perpendicular control
+  // offsets at 30%/70% along the line — independent +/- so some edges
+  // bow one way, others sigmoid. Magnitude controls how curvy.
+  function applyCurves(net, seed, mag){
+    var rng = rand(seed != null ? seed : CURVE_SEED);
+    var m = mag != null ? mag : CURVE_MAG;
+    net.edges.forEach(function(e){
+      e.curveA1 = (rng()*2 - 1) * m;
+      e.curveA2 = (rng()*2 - 1) * m;
+    });
+  }
+
+  // Compute an edge's SVG path 'd' attribute. Geometry mode is read from
+  // outer edgeGeom var: 'curve' (Bezier via curveA1/A2), 'straight' (M..L),
+  // or 'manhattan' (orthogonal Z routed through midX). pathLength=100 is
+  // set on the path so the dash math is identical regardless of actual
+  // path length.
+  function edgePath(e){
+    var x1 = e.from.x, y1 = e.from.y, x2 = e.to.x, y2 = e.to.y;
+    if (edgeGeom === 'manhattan'){
+      var mx = (x1 + x2) / 2;
+      return 'M'+x1.toFixed(1)+' '+y1.toFixed(1)
+           +'L'+mx.toFixed(1)+' '+y1.toFixed(1)
+           +'L'+mx.toFixed(1)+' '+y2.toFixed(1)
+           +'L'+x2.toFixed(1)+' '+y2.toFixed(1);
+    }
+    if (edgeGeom === 'straight' || (e.curveA1 == null && e.curveA2 == null)){
+      return 'M'+x1.toFixed(1)+' '+y1.toFixed(1)+'L'+x2.toFixed(1)+' '+y2.toFixed(1);
+    }
+    var dx = x2-x1, dy = y2-y1;
+    var len = Math.sqrt(dx*dx + dy*dy) || 1;
+    var nx = -dy/len, ny = dx/len; // perpendicular unit vector
+    var a1 = e.curveA1 || 0, a2 = e.curveA2 || 0;
+    var p1x = x1 + dx*0.30 + nx*a1;
+    var p1y = y1 + dy*0.30 + ny*a1;
+    var p2x = x1 + dx*0.70 + nx*a2;
+    var p2y = y1 + dy*0.70 + ny*a2;
+    return 'M'+x1.toFixed(1)+' '+y1.toFixed(1)+'C'+p1x.toFixed(1)+' '+p1y.toFixed(1)+' '+p2x.toFixed(1)+' '+p2y.toFixed(1)+' '+x2.toFixed(1)+' '+y2.toFixed(1);
+  }
+
+  // Cycle budget: 1.33s. nn-flow visible window per edge = 87% × 1.33 = 1.157s.
+  // Each col's hot pulse occupies a staggered slice of the cycle:
+  //   col 0 (delay 0):    visible t mod 1.33 ∈ [0.067, 1.104]   — dark [1.104, 1.397]
+  //   col 1 (delay 0.34): visible t mod 1.33 ∈ [0.407, 1.444]   — dark [0.114, 0.407]
+  //   col 2 (delay 0.68): visible t mod 1.33 ∈ [0.747, 1.784]   — dark [0.454, 0.747]
+  // No moment when ALL three are dark, so a full innerHTML swap can't avoid
+  // cutting at least one mid-pulse. Instead we render every edge once with
+  // data-active="0/1" and toggle the attribute per column inside that column's
+  // own dark window — keeps CSS animation phase intact, just hides the pulse.
+
+  // ===== Variant configs =====
+  // All 16 variants share the same 1.33s cycle, SLOT, firing pick, and
+  // per-cycle re-randomization rhythm so pulse rate / speed / randomness
+  // are identical across them. They differ only in:
+  //   geom    — edge path geometry: 'curve' | 'straight' | 'manhattan'
+  //   drift   — drift mode passed to applyDrift: 'tide' | 'none' | 'jitter'
+  //   shapes  — extra shape kinds rendered alongside circles
+  //   layerProfile — 'flat' (default) or 'differentiated': cols 0→1 fire
+  //     tightly (encoding-like), 1→2 with widest variance (mid-reasoning),
+  //     2→3 thinner & brighter (decisive output)
+  //   ghosts  — number of backward+skip ghost edges per cycle (0 = off)
+  //   multiHead — render a 2nd dimmer pulse trail offset by ~80ms
+  var VARIANTS = {
+    // Living family (1 anchor, 2..8 variations) — nn-flow grammar
+    1:  {label:'Living',    geom:'straight', drift:'standard', shapes:[]},
+    2:  {label:'Quicken',   geom:'straight', drift:'standard', shapes:[]},
+    3:  {label:'Ponder',    geom:'straight', drift:'standard', shapes:[]},
+    4:  {label:'Stutter',   geom:'straight', drift:'standard', shapes:[]},
+    5:  {label:'Drift',     geom:'straight', drift:'standard', shapes:[]},
+    6:  {label:'Shimmer',   geom:'straight', drift:'standard', shapes:[], multiHead:true},
+    7:  {label:'Filament',  geom:'straight', drift:'standard', shapes:[]},
+    8:  {label:'Whisper',   geom:'straight', drift:'standard', shapes:[]},
+    // Cognition family (9 anchor, 10..16 variations) — Living grammar + differentiated layers + ghosts (+ multihead on 11/12/16)
+    9:  {label:'Cognition', geom:'straight', drift:'standard', shapes:[], layerProfile:'differentiated', ghosts:4},
+    10: {label:'Reverie',   geom:'straight', drift:'standard', shapes:[], layerProfile:'differentiated', ghosts:4},
+    11: {label:'Resolve',   geom:'straight', drift:'standard', shapes:[], layerProfile:'differentiated', ghosts:4, multiHead:true},
+    12: {label:'Lucid',     geom:'straight', drift:'standard', shapes:[], layerProfile:'differentiated', ghosts:4, multiHead:true},
+    13: {label:'Insight',   geom:'straight', drift:'standard', shapes:[], layerProfile:'differentiated', ghosts:4},
+    14: {label:'Recall',    geom:'straight', drift:'standard', shapes:[], layerProfile:'differentiated', ghosts:4},
+    15: {label:'Focus',     geom:'straight', drift:'standard', shapes:[], layerProfile:'differentiated', ghosts:4},
+    16: {label:'Intuit',    geom:'straight', drift:'standard', shapes:[], layerProfile:'differentiated', ghosts:4, multiHead:true},
+    // Hybrid family (17..20) — Living grammar × Focus precision
+    17: {label:'Tangent',   geom:'straight', drift:'standard', shapes:[]},
+    18: {label:'Arcline',   geom:'straight', drift:'standard', shapes:[], ghosts:4},
+    19: {label:'Temper',    geom:'straight', drift:'standard', shapes:[], layerProfile:'differentiated'},
+    20: {label:'Cinder',    geom:'straight', drift:'standard', shapes:[], layerProfile:'differentiated', ghosts:4, multiHead:true}
+  };
+
+  // DRIFT-family rebuild — runs identically for every variant, switching
+  // only edgeGeom, drift mode, and which alt shapes get emitted. Tracks all
+  // setInterval/setTimeout IDs in variantTimers so setVariant() can tear down.
+  function buildVariant(v){
+    clearVariantTimers();
+    var cfg = VARIANTS[v] || VARIANTS[1];
+    edgeGeom = cfg.geom;
+
+    var net = buildFF(PULSE_SHAPE, {pad:PULSE_PAD});
+    net.driftMode = cfg.drift;
+    if (cfg.geom === 'curve') applyCurves(net);
+    if (cfg.ghosts){
+      net.ghosts = buildGhostEdges(net, 0xBEEF, cfg.ghosts);
+    }
+    var SLOT = 0.34; // inter-column relay; gap = SLOT/2 = 0.17s
+    var rng = rand((Date.now() & 0xffff) ^ 29);
+    var pickOpts = Object.assign({}, RAPIDS_DENS, {layerProfile: cfg.layerProfile || 'flat'});
+    var picked = pickFiring(net, rng, pickOpts);
+    viz.innerHTML = renderNetSelective(net, 'nn-flow', SLOT, picked.firedEdges, picked.flashCount, 100, false, v, cfg.shapes, cfg.multiHead);
+    viz.setAttribute('data-variant-bg', String(v));
+
+    // Per-cycle re-randomization. One pickFiring per cycle (driven by col 0's
+    // tick), applied staggered so col 1/col 2 swaps happen during their own
+    // dark windows — the wave for cycle N+1 already has the new edges set on
+    // each column by the time its pulse renders.
+    var rng2 = rand((Date.now() ^ 0x55adbeef) >>> 0);
+    var CYCLE = 1330;
+    // Mid-dark swap moment per column (ms). col0 is just before cycle 1's
+    // first pulse (1300ms); each subsequent col is staggered SLOT (340ms)
+    // later so its swap lands inside its own dark window. Sized to
+    // PULSE_SHAPE.length-1 so every transition re-randomizes regardless
+    // of net depth.
+    var nTrans = net.layers.length - 1;
+    var COL_OFFSET = [];
+    for (var coi = 0; coi < nTrans; coi++) COL_OFFSET.push(1300 + coi * 340);
+    var pendingPick = null;
+    // Edge ref cached per column. Flash refs cached per node id as a list,
+    // since some variants emit multiple flash elements (default circle +
+    // alt shape) all toggled together via the same data-active value.
+    var edgesByCol = []; for (var aci = 0; aci < nTrans; aci++) edgesByCol.push({});
+    var altEdgesByCol = []; for (var aci2 = 0; aci2 < nTrans; aci2++) altEdgesByCol.push({});
+    var flashesByCol = []; for (var fci = 0; fci <= nTrans; fci++) flashesByCol.push({});
+    viz.querySelectorAll('[data-eidh]').forEach(function(p){
+      var l = +p.getAttribute('data-srcl');
+      edgesByCol[l][p.getAttribute('data-eidh')] = p;
+    });
+    viz.querySelectorAll('[data-eidh2]').forEach(function(p){
+      var l = +p.getAttribute('data-srcl');
+      altEdgesByCol[l][p.getAttribute('data-eidh2')] = p;
+    });
+    viz.querySelectorAll('[data-flash-of]').forEach(function(c){
+      var l = +c.getAttribute('data-flash-l');
+      var id = c.getAttribute('data-flash-of');
+      (flashesByCol[l][id] = flashesByCol[l][id] || []).push(c);
+    });
+    var ghostEls = [];
+    viz.querySelectorAll('[data-gid]').forEach(function(p){ ghostEls.push(p); });
+    function applyCol(li){
+      // Cycle boundary = col 0's tick. If a stop was requested mid-cycle, this
+      // is the safe moment to honor it: cols 1..nTrans-1 have already ticked
+      // for the in-flight cycle under running=true, so the visible wave has
+      // fully composed across every column. Flipping running now means the
+      // dimming wave starts on the cycle that would have begun here, not the
+      // one currently in flight.
+      if (li === 0 && pendingStop){
+        running = false;
+        pendingStop = false;
+      }
+      var em = edgesByCol[li], emAlt = altEdgesByCol[li], fm = flashesByCol[li + 1];
+      // Graceful stop: each column's tick lands inside its own dark window
+      // (just after this cycle's flash faded, before the next pulse). Clearing
+      // data-active here lets the wave finish its left→right pass and then
+      // simply not start the next cycle for this column.
+      if (!running){
+        net.edges.forEach(function(e){
+          if (e.from.l !== li) return;
+          var p = em[e._id]; if (p) p.setAttribute('data-active', '0');
+          var p2 = emAlt[e._id]; if (p2) p2.setAttribute('data-active', '0');
+        });
+        net.nodes.forEach(function(n){
+          if (n.l !== li + 1) return;
+          var els = fm[n._id] || [];
+          for (var k=0; k<els.length; k++) els[k].setAttribute('data-active', '0');
+        });
+        return;
+      }
+      if (li === 0) pendingPick = pickFiring(net, rng2, pickOpts);
+      var pk = pendingPick;
+      if (!pk) return;
+      net.edges.forEach(function(e){
+        if (e.from.l !== li) return;
+        var on = pk.firedEdges.has(e) ? '1' : '0';
+        var p = em[e._id];
+        if (p) p.setAttribute('data-active', on);
+        var p2 = emAlt[e._id];
+        if (p2) p2.setAttribute('data-active', on);
+      });
+      net.nodes.forEach(function(n){
+        if (n.l !== li + 1) return;
+        var els = fm[n._id] || [];
+        var val = pk.flashCount[n.l+','+n.i] ? '1' : '0';
+        for (var k=0; k<els.length; k++) els[k].setAttribute('data-active', val);
+      });
+    }
+    for (var li = 0; li < nTrans; li++){
+      (function(li){
+        var tid = setTimeout(function(){
+          applyCol(li);
+          var iid = setInterval(function(){applyCol(li);}, CYCLE);
+          variantTimers.push({kind:'i', id:iid});
+        }, COL_OFFSET[li]);
+        variantTimers.push({kind:'t', id:tid});
+      })(li);
+    }
+    // Ghost pulse: pick ~3 random ghosts each cycle; fired ones get
+    // data-active="1" and run their own subtle keyframe. Re-randomize at
+    // col 0's swap moment so the ghost set lines up with each new cycle.
+    if (ghostEls.length){
+      var ghostRng = rand((Date.now() ^ 0xCAFEF00D) >>> 0);
+      function pickGhosts(){
+        // Clear unconditionally — fires at col 0's swap moment, which is the
+        // ghost's own dark window, so this never cuts a visible ghost pulse.
+        ghostEls.forEach(function(p){ p.setAttribute('data-active', '0'); });
+        if (!running) return;
+        var shuffled = ghostEls.slice().sort(function(){ return ghostRng() - 0.5; });
+        var n = 2 + Math.floor(ghostRng() * 3); // 2..4 ghosts per cycle
+        shuffled.slice(0, Math.min(n, ghostEls.length)).forEach(function(p){
+          p.setAttribute('data-active', '1');
+        });
+      }
+      var gtid = setTimeout(function(){
+        pickGhosts();
+        var giid = setInterval(pickGhosts, CYCLE);
+        variantTimers.push({kind:'i', id:giid});
+      }, COL_OFFSET[0]);
+      variantTimers.push({kind:'t', id:gtid});
+    }
+  }
+
+  function setVariant(v){
+    if (v === currentVariant) return;
+    currentVariant = v;
+    buildVariant(v);
+    var bs = document.querySelectorAll('#nnSwitch .nn-switch__b');
+    for (var i=0; i<bs.length; i++){
+      bs[i].setAttribute('aria-pressed', String((+bs[i].getAttribute('data-v')) === v));
+    }
+  }
+
+  // Build the 16-button switcher (4-col grid; row 4 holds 13/14/15/16)
+  var sw = document.getElementById('nnSwitch');
+  if (sw){
+    var bhtml = '';
+    for (var k=1; k<=20; k++){
+      var pk = k < 10 ? '0'+k : ''+k;
+      bhtml += '<button type="button" class="nn-switch__b" role="tab" aria-pressed="'+(k===1?'true':'false')+'" data-v="'+k+'">'
+            + '<span>'+pk+'</span><small>'+VARIANTS[k].label+'</small></button>';
+    }
+    sw.innerHTML = bhtml;
+    sw.addEventListener('click', function(ev){
+      var b = ev.target.closest('.nn-switch__b');
+      if (!b) return;
+      setVariant(+b.getAttribute('data-v'));
+    });
+  }
+
+  // Drift: deterministic per-node sin/cos wobble. Used both by tick() during
+  // playback AND by renderNetSelective() before paint, so cycle rebuilds emit
+  // SVG with already-drifted positions and there's no snap-back at boundaries.
+  // Modes: 'standard' (default), 'reach', 'pulse', 'bloom', 'tide' — all are
+  // pure functions of t + per-node static phase data, so motion is continuous
+  // across cycle rebuilds.
+  function applyDrift(net, t){
+    if (!net) return;
+    var L = net.layers.length;
+    var mode = net.driftMode || 'standard';
+    var cx = W/2, cyC = H/2;
+    for (var ni=0; ni<net.nodes.length; ni++){
+      var n = net.nodes[ni];
+      var phx = n.l*1.7 + n.i*0.93;
+      var phy = n.l*1.13 + n.i*1.51 + 1.1;
+      var edge = (n.l===0||n.l===L-1);
+      var ax = edge ? 2.5 : 6.0;
+      var ay = edge ? 3.0 : 5.0;
+      var dx, dy;
+      if (mode === 'none'){
+        dx = 0; dy = 0;
+      } else if (mode === 'jitter'){
+        // small, high-frequency wobble — ink-pen tremor
+        dx = Math.sin(t*3.6 + phx*2.2) * 1.6 + Math.sin(t*7.1 + phx*3.0) * 0.7;
+        dy = Math.cos(t*3.3 + phy*2.5) * 1.6 + Math.cos(t*6.7 + phy*2.7) * 0.7;
+      } else if (mode === 'reach' && n.stretchNode){
+        // Marked nodes wander much further, slower freq for visible reach
+        dx = Math.sin(t*0.55 + phx*0.8) * (ax*3.0) + Math.sin(t*0.27 + phx*1.3) * 4.0;
+        dy = Math.cos(t*0.50 + phy*0.8) * (ay*2.6) + Math.cos(t*0.31 + phy*1.2) * 3.5;
+      } else {
+        dx = Math.sin(t*0.85 + phx) * ax + Math.sin(t*0.43 + phx*1.7) * 1.8;
+        dy = Math.cos(t*0.7  + phy) * ay + Math.cos(t*0.51 + phy*1.4) * 2.2;
+      }
+      if (mode === 'pulse'){
+        // Each node bursts outward (radial from net center) on its own static phase
+        var per = 6.5;
+        var phase = (t - (n.pulsePhase||0)) % per;
+        if (phase < 0) phase += per;
+        var bw = 1.4; // burst window in seconds
+        if (phase < bw){
+          var burst = Math.sin((phase/bw) * Math.PI); // 0..1..0
+          var vx = n.x0 - cx, vy = n.y0 - cyC;
+          var mag = Math.sqrt(vx*vx + vy*vy) || 1;
+          dx += (vx/mag) * burst * 16;
+          dy += (vy/mag) * burst * 14;
+        }
+      } else if (mode === 'bloom'){
+        // Whole-network radial breathe — synchronized expansion/contraction
+        var breathe = (Math.sin(t * 0.42) + 1) * 0.5; // 0..1
+        var vx2 = n.x0 - cx, vy2 = n.y0 - cyC;
+        dx += vx2 * 0.20 * breathe;
+        dy += vy2 * 0.22 * breathe;
+      } else if (mode === 'tide'){
+        // Wave of amplitude swell traveling left→right through the layers
+        var wavePos = ((t * 0.55) % (L+2)) - 1;
+        var dist = Math.abs(wavePos - n.l);
+        var swell = Math.exp(-(dist*dist)/0.7);
+        dx *= 1 + swell * 1.9;
+        dy *= 1 + swell * 1.7;
+      }
+      n.x = n.x0 + dx;
+      n.y = n.y0 + dy;
+    }
+  }
+
+  // Helpers for alt node shapes used by variants 3/6/7/8.
+  function hexPoints(cx, cy, r){
+    var pts = [];
+    for (var i=0; i<6; i++){
+      var a = (Math.PI/3)*i + Math.PI/2;
+      pts.push((cx + r*Math.cos(a)).toFixed(2)+','+(cy + r*Math.sin(a)).toFixed(2));
+    }
+    return pts.join(' ');
+  }
+  function plusPath(cx, cy, r){
+    return 'M'+(cx-r).toFixed(1)+' '+cy.toFixed(1)+'L'+(cx+r).toFixed(1)+' '+cy.toFixed(1)
+          +'M'+cx.toFixed(1)+' '+(cy-r).toFixed(1)+'L'+cx.toFixed(1)+' '+(cy+r).toFixed(1);
+  }
+
+  // Render: dim baseline edges always; only firedEdges get hot pulse with layer delay;
+  // only nodes with flashCount>0 get a flash overlay. Source-layer nodes never flash.
+  // Variant arg toggles which alt shape kinds are emitted alongside the default
+  // circles — they're hidden via CSS until [data-variant] selects them.
+  // multiHead: emit a 2nd hot-path overlay per edge (data-eidh2) for variants
+  // 11/12 to read as two attention heads following the same path 80ms apart.
+  // ghosts: net.ghosts array of backward/skip edges to render at low opacity.
+  function renderNetSelective(net, klass, SLOT, firedEdges, flashCount, pathLen, ring, variant, shapes, multiHead){
+    currentNet = net;
+    // Apply drift now so SVG is emitted at currently-drifted positions, not
+    // baseline. Drift clock is module-scoped — never reset on rebuild — so
+    // same-shape rebuilds (every 4.4–4.8s cycle) are visually seamless.
+    applyDrift(net, (performance.now() - motionStart) / 1000);
+    // Per-edge timing: each style can override net.edgeDelay(e) to emit
+    // skip waves, double volleys, center-out ripples, diagonal surges, etc.
+    var delayFn = net.edgeDelay || function(e){ return e.from.l; };
+    net.edges.forEach(function(e){ e._delay = delayFn(e); });
+    // Node flash POPS when the line arrives at it. The keyframe already
+    // schedules the flash pop at ~22-38% of cycle (depending on style) — same
+    // moment the dash crosses the destination node. So node delay must equal
+    // its earliest incoming edge's delay (no +1 offset, otherwise flash lands
+    // one slot AFTER arrival and looks visibly late).
+    var nodeDelay = {};
+    firedEdges.forEach(function(e){
+      var k = e.to.l+','+e.to.i;
+      var d = e._delay;
+      if (nodeDelay[k] == null || d < nodeDelay[k]) nodeDelay[k] = d;
+    });
+    shapes = shapes || [];
+    var hasRect = shapes.indexOf('rect') !== -1;
+    var hasHex  = shapes.indexOf('hex')  !== -1;
+    var hasPlus = shapes.indexOf('plus') !== -1;
+    var hasRing = shapes.indexOf('ring') !== -1;
+    var v = variant || 1;
+    var svg = '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid slice" class="'+klass+'" data-variant="'+v+'" xmlns="http://www.w3.org/2000/svg">';
+    net.edges.forEach(function(e,ei){
+      e._id = 'e'+ei;
+      svg += '<path data-eid="'+e._id+'" class="nn-edge" d="'+edgePath(e)+'"/>';
+    });
+    // Render hot path for EVERY edge with data-active set from initial pick;
+    // per-cycle re-randomization just toggles data-active (keeps animation phase).
+    net.edges.forEach(function(e,ei){
+      var d = e._delay * SLOT;
+      var on = firedEdges.has(e) ? '1' : '0';
+      svg += '<path data-eidh="'+e._id+'" data-srcl="'+e.from.l+'" data-active="'+on+'" class="nn-edge nn-edge--hot" d="'+edgePath(e)+'" pathLength="'+pathLen+'" style="--d:'+d.toFixed(2)+'s"/>';
+      // (4) Multi-head: 2nd dimmer trail offset 80ms behind the primary.
+      // Same animation-name (driven by data-srcl) so it inherits per-layer
+      // staggered keyframe; CSS adds the 80ms delay + dim opacity.
+      if (multiHead){
+        svg += '<path data-eidh2="'+e._id+'" data-srcl="'+e.from.l+'" data-active="'+on+'" class="nn-edge nn-edge--hot nn-edge--hot--alt" d="'+edgePath(e)+'" pathLength="'+pathLen+'" style="--d:'+d.toFixed(2)+'s"/>';
+      }
+    });
+    // (3) Ghost edges (backward + skip) — always rendered at low opacity,
+    // a random subset gets data-active="1" each cycle for a subtle pulse.
+    if (net.ghosts && net.ghosts.length){
+      net.ghosts.forEach(function(g){
+        svg += '<path data-gid="'+g._gid+'" data-active="0" class="nn-edge--ghost nn-edge--ghost--'+g.kind+'" d="'+edgePath(g)+'" pathLength="'+pathLen+'"/>';
+      });
+    }
+    net.nodes.forEach(function(n,ni){
+      n._id = 'n'+n.l+'_'+n.i;
+      svg += '<circle data-nid="'+n._id+'" class="nn-node" cx="'+n.x.toFixed(1)+'" cy="'+n.y.toFixed(1)+'" r="2.5"/>';
+    });
+    // Default flash circles. Hidden via CSS for variants that use alt shapes.
+    net.nodes.forEach(function(n){
+      if (n.l === 0) return;
+      var k = n.l+','+n.i;
+      var on = flashCount[k] ? '1' : '0';
+      var nd = (nodeDelay[k] != null ? nodeDelay[k] : (n.l - 1)) * SLOT;
+      svg += '<circle data-nidf="'+n._id+'" data-flash-of="'+n._id+'" data-flash-l="'+n.l+'" data-dstl="'+n.l+'" data-active="'+on+'" class="nn-node--flash" cx="'+n.x.toFixed(1)+'" cy="'+n.y.toFixed(1)+'" r="2.5" style="--nd:'+nd.toFixed(2)+'s"/>';
+      if (ring){
+        svg += '<circle data-nidr="'+n._id+'" class="nn-node--ring" cx="'+n.x.toFixed(1)+'" cy="'+n.y.toFixed(1)+'" r="2" style="--nd:'+nd.toFixed(2)+'s"/>';
+      }
+    });
+    // Alt always-on shapes (rect for circuit, hex for hex variant)
+    if (hasRect){
+      net.nodes.forEach(function(n){
+        svg += '<rect data-pos-rect="'+n._id+'" class="nn-node-rect" x="'+(n.x-2).toFixed(1)+'" y="'+(n.y-2).toFixed(1)+'" width="4" height="4"/>';
+      });
+    }
+    if (hasHex){
+      net.nodes.forEach(function(n){
+        svg += '<polygon data-pos-hex="'+n._id+'" class="nn-node-hex" points="'+hexPoints(n.x, n.y, 3)+'"/>';
+      });
+    }
+    // Alt flash shapes — rendered for every non-source-layer node, share
+    // data-active toggle with the default flash circles.
+    if (hasRect || hasHex || hasPlus || hasRing){
+      net.nodes.forEach(function(n){
+        if (n.l === 0) return;
+        var k = n.l+','+n.i;
+        var on = flashCount[k] ? '1' : '0';
+        var nd = (nodeDelay[k] != null ? nodeDelay[k] : (n.l - 1)) * SLOT;
+        var common = 'data-flash-of="'+n._id+'" data-flash-l="'+n.l+'" data-active="'+on+'" style="--nd:'+nd.toFixed(2)+'s"';
+        if (hasRect){
+          svg += '<rect data-pos-rect-flash="'+n._id+'" '+common+' class="nn-node-rect--flash" x="'+(n.x-2).toFixed(1)+'" y="'+(n.y-2).toFixed(1)+'" width="4" height="4"/>';
+        }
+        if (hasHex){
+          svg += '<polygon data-pos-hex-flash="'+n._id+'" '+common+' class="nn-node-hex--flash" points="'+hexPoints(n.x, n.y, 3.2)+'"/>';
+        }
+        if (hasPlus){
+          svg += '<path data-pos-plus="'+n._id+'" '+common+' class="nn-node-plus" d="'+plusPath(n.x, n.y, 4)+'"/>';
+        }
+        if (hasRing){
+          svg += '<circle data-pos-ring="'+n._id+'" '+common+' class="nn-node-ring" cx="'+n.x.toFixed(1)+'" cy="'+n.y.toFixed(1)+'" r="2"/>';
+        }
+      });
+    }
+    svg += '</svg>';
+    return svg;
+  }
+
+  // Single render of the full edge set (all paths present, only data-active
+  // controls visibility); buildVariant schedules per-column re-randomization
+  // staggered into each column's own dark window so the wave varies every
+  // cycle without ever cutting a visible pulse. tick() keeps node drift
+  // continuous via rAF. setVariant(N) tears down and rebuilds.
+  buildVariant(currentVariant);
+
+  // ===== motion loop =====
+  function tick(){
+    if (currentNet){
+      var t = (performance.now() - motionStart) / 1000;
+      var nodes = currentNet.nodes, edges = currentNet.edges;
+      var svg = viz.querySelector('svg');
+      if (svg){
+        applyDrift(currentNet, t);
+        var byId = svg.__byId;
+        if (!byId){
+          byId = {nodes:{}, flash:{}, ring:{}, rect:{}, rectF:{}, hex:{}, hexF:{}, plus:{}, ringV:{}};
+          svg.querySelectorAll('[data-nid]').forEach(function(c){byId.nodes[c.getAttribute('data-nid')] = c;});
+          svg.querySelectorAll('[data-nidf]').forEach(function(c){byId.flash[c.getAttribute('data-nidf')] = c;});
+          svg.querySelectorAll('[data-nidr]').forEach(function(c){byId.ring[c.getAttribute('data-nidr')] = c;});
+          svg.querySelectorAll('[data-pos-rect]').forEach(function(c){byId.rect[c.getAttribute('data-pos-rect')] = c;});
+          svg.querySelectorAll('[data-pos-rect-flash]').forEach(function(c){byId.rectF[c.getAttribute('data-pos-rect-flash')] = c;});
+          svg.querySelectorAll('[data-pos-hex]').forEach(function(c){byId.hex[c.getAttribute('data-pos-hex')] = c;});
+          svg.querySelectorAll('[data-pos-hex-flash]').forEach(function(c){byId.hexF[c.getAttribute('data-pos-hex-flash')] = c;});
+          svg.querySelectorAll('[data-pos-plus]').forEach(function(c){byId.plus[c.getAttribute('data-pos-plus')] = c;});
+          svg.querySelectorAll('[data-pos-ring]').forEach(function(c){byId.ringV[c.getAttribute('data-pos-ring')] = c;});
+          var em = {};
+          svg.querySelectorAll('[data-eid]').forEach(function(l){em[l.getAttribute('data-eid')]=l;});
+          var emh = {};
+          svg.querySelectorAll('[data-eidh]').forEach(function(l){emh[l.getAttribute('data-eidh')]=l;});
+          var emh2 = {};
+          svg.querySelectorAll('[data-eidh2]').forEach(function(l){emh2[l.getAttribute('data-eidh2')]=l;});
+          var gh = {};
+          svg.querySelectorAll('[data-gid]').forEach(function(l){gh[l.getAttribute('data-gid')]=l;});
+          byId.em = em; byId.emh = emh; byId.emh2 = emh2; byId.gh = gh;
+          svg.__byId = byId;
+        }
+        for (var i=0;i<nodes.length;i++){
+          var n2 = nodes[i];
+          var c = byId.nodes[n2._id];
+          if (c){c.setAttribute('cx', n2.x.toFixed(1)); c.setAttribute('cy', n2.y.toFixed(1));}
+          var f = byId.flash[n2._id];
+          if (f){f.setAttribute('cx', n2.x.toFixed(1)); f.setAttribute('cy', n2.y.toFixed(1));}
+          var r = byId.ring[n2._id];
+          if (r){r.setAttribute('cx', n2.x.toFixed(1)); r.setAttribute('cy', n2.y.toFixed(1));}
+          var rect = byId.rect[n2._id];
+          if (rect){rect.setAttribute('x', (n2.x-2).toFixed(1)); rect.setAttribute('y', (n2.y-2).toFixed(1));}
+          var rectF = byId.rectF[n2._id];
+          if (rectF){rectF.setAttribute('x', (n2.x-2).toFixed(1)); rectF.setAttribute('y', (n2.y-2).toFixed(1));}
+          var hex = byId.hex[n2._id];
+          if (hex) hex.setAttribute('points', hexPoints(n2.x, n2.y, 3));
+          var hexF = byId.hexF[n2._id];
+          if (hexF) hexF.setAttribute('points', hexPoints(n2.x, n2.y, 3.2));
+          var plus = byId.plus[n2._id];
+          if (plus) plus.setAttribute('d', plusPath(n2.x, n2.y, 4));
+          var ringV = byId.ringV[n2._id];
+          if (ringV){ringV.setAttribute('cx', n2.x.toFixed(1)); ringV.setAttribute('cy', n2.y.toFixed(1));}
+        }
+        for (var ei=0; ei<edges.length; ei++){
+          var e = edges[ei];
+          var a = byId.em[e._id]; var b = byId.emh[e._id]; var b2 = byId.emh2[e._id];
+          var d = edgePath(e);
+          if (a) a.setAttribute('d', d);
+          if (b) b.setAttribute('d', d);
+          if (b2) b2.setAttribute('d', d);
+        }
+        if (currentNet.ghosts){
+          for (var gi=0; gi<currentNet.ghosts.length; gi++){
+            var g = currentNet.ghosts[gi];
+            var ge = byId.gh[g._gid];
+            if (ge) ge.setAttribute('d', edgePath(g));
+          }
+        }
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+
+// O5 Reveal: hold the video frame, play it once the screen "snaps open"
+(function(){
+  var v = document.querySelector('.hud--video video');
+  if (!v) return;
+  // Pause on load so the wake animation runs over a frozen first frame
+  v.pause();
+  // Defer until reveal completes (video reveal starts at 0.5s, lands ~2.1s)
+  setTimeout(function(){
+    var p = v.play();
+    if (p && p.catch) p.catch(function(){});
+  }, 1700);
+})();
+
+</script>
+
+<script type="application/json" id="agent-timeline-data">
+{"version":1,"duration":25.334,"ranges":[{"tStart":0,"tEnd":7.236,"state":"idle"},{"tStart":7.236,"tEnd":14.983,"state":"thinking"},{"tStart":10.287,"tEnd":13.343,"state":"tool","overlay":true,"id":"8ba50a9d-1727-493f-94c7-119db1c718c3","tool":"unknown"},{"tStart":14.983,"tEnd":15.557,"state":"responding","text":"Echo: Test received."},{"tStart":15.557,"tEnd":19.355,"state":"idle"},{"tStart":19.355,"tEnd":21.438,"state":"thinking"},{"tStart":21.438,"tEnd":22.196,"state":"responding","text":"Echo: Heh, working nicely"},{"tStart":22.196,"tEnd":25.334,"state":"idle"}]}
+</script>
+<script>
+  (function() {
+    var video = document.querySelector('.hud--video video');
+    if (!video) return;
+    var agentPanel = document.querySelector('.agent-panel');
+    var neuralPanel = document.querySelector('.neural-panel');
+    if (!agentPanel || !neuralPanel) return;
+
+    var timeline = null;
+
+    function activate(t) {
+      if (!t || t.version !== 1 || !Array.isArray(t.ranges)) return false;
+      timeline = t;
+      agentPanel.classList.add('is-timeline-driven');
+      neuralPanel.classList.add('is-timeline-driven');
+      startTick();
+      return true;
+    }
+
+    // 1) Try inline data first — works on file:// where fetch() is CORS-blocked.
+    var inlineEl = document.getElementById('agent-timeline-data');
+    if (inlineEl) {
+      try {
+        var inlineJson = JSON.parse(inlineEl.textContent || '');
+        if (activate(inlineJson)) return;
+      } catch (e) { /* fall through to fetch */ }
+    }
+
+    // 2) Otherwise fetch the sidecar from <video src>.
+    var src = video.currentSrc || video.src;
+    var u;
+    try { u = new URL(src, location.href); } catch (e) { return; }
+    var replaced = u.pathname.replace(/\.webm$/i, '.timeline.json');
+    if (replaced === u.pathname) return; // not a .webm — no sidecar
+    u.pathname = replaced;
+
+    fetch(u.toString())
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .catch(function() { return null; })
+      .then(function(t) {
+        if (!activate(t)) {
+          console.warn('agent-panel: no timeline sidecar, neural net stays always-on');
+        }
+      });
+
+    function lookupState(t) {
+      var primary = { state: 'idle' };
+      var overlays = [];
+      for (var i = 0; i < timeline.ranges.length; i++) {
+        var r = timeline.ranges[i];
+        if (t < r.tStart || t >= r.tEnd) continue;
+        if (r.overlay) overlays.push(r);
+        else primary = r;
+      }
+      overlays.sort(function(a, b) { return a.tStart - b.tStart; });
+      var overlay = overlays.length ? overlays[overlays.length - 1] : null;
+      return { primary: primary, overlays: overlays, overlay: overlay };
+    }
+
+    function setStateClass(el, state) {
+      var prefix = 'is-state-';
+      var keep = [];
+      for (var i = 0; i < el.classList.length; i++) {
+        var c = el.classList[i];
+        if (c.indexOf(prefix) !== 0) keep.push(c);
+      }
+      el.className = keep.join(' ') + ' ' + prefix + state;
+    }
+
+    function applyState(primary, overlay, overlays) {
+      setStateClass(agentPanel, primary.state);
+      setStateClass(neuralPanel, primary.state);
+      var overlayId = overlay ? overlay.id : '';
+      agentPanel.setAttribute('data-overlay', overlayId);
+      neuralPanel.setAttribute('data-overlay', overlayId);
+      agentPanel.setAttribute('data-overlay-count', String(overlays.length));
+      neuralPanel.setAttribute('data-overlay-count', String(overlays.length));
+
+      var statusEl = agentPanel.querySelector('.agent-panel__status');
+      if (statusEl) {
+        var label = 'Idle';
+        if (overlay) {
+          label = 'Running ' + (overlay.tool || 'tool');
+          if (overlays.length > 1) label += ' (+' + (overlays.length - 1) + ')';
+        } else if (primary.state === 'listening') label = 'Listening';
+        else if (primary.state === 'thinking') label = primary.summary || 'Thinking';
+        else if (primary.state === 'responding') label = (primary.text || 'Responding').slice(0, 80);
+        statusEl.textContent = label;
+      }
+
+      var nnActive = primary.state === 'thinking' || primary.state === 'responding' || !!overlay;
+      if (typeof window.__nnSetRunning === 'function') window.__nnSetRunning(nnActive);
+    }
+
+    var lastKey = '';
+    function tick() {
+      if (!timeline) return;
+      var t = video.currentTime; // already wraps via the video's loop attribute
+      var s = lookupState(t);
+      var overlayKey = s.overlays.map(function(o) { return o.id; }).join(',');
+      var key = s.primary.state + '|' + overlayKey;
+      if (key !== lastKey) { applyState(s.primary, s.overlay, s.overlays); lastKey = key; }
+      requestAnimationFrame(tick);
+    }
+    function startTick() { requestAnimationFrame(tick); }
+  })();
+</script>
+</body>
+</html>
