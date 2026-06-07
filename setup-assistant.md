@@ -230,15 +230,24 @@ Template: **GOAL · CHECK (skip-if) · DO · VERIFY · IF-FAILED → appendix ke
 - DO (agent): confirm evenAiToken probe = 1, then run:
   `openclaw config set plugins.entries.ocuclaw.config.evenAiEnabled true --strict-json`
   then restart warning + `openclaw gateway restart`
+- DO (user, web) — **unlock "Agent Configuration" first.** This section is itself an
+  Even Realities beta and stays hidden until the account is flagged for it. The user
+  signs in at `https://hub.evenrealities.com/hub` with the **same email** as their
+  Even Realities account; that flags the account, and an `Agent Configuration`
+  section then appears at the bottom of the app's `Even AI` settings. Propagation
+  isn't instant — if it's not there yet, wait a bit and fully restart (force-close
+  and reopen) the Even Realities app on the phone.
 - DO (user, phone): Even Realities app → Settings → Even AI settings → Agent
-  Configure → Add Agent:
+  Configuration (at the bottom) → Add Agent:
   - URL: `https://<node>.<tailnet>.ts.net:8443/v1/chat/completions`
   - Token: the Even AI password just created
   ⚠️ This is the OTHER door: the `https://…:8443/v1/chat/completions` URL —
   NOT the `wss://…:8444` relay address.
 - VERIFY: the user triggers Even AI on the glasses; the answer comes from their
   OpenClaw session.
-- IF-FAILED → ERR-EVENAI-TOKEN; otherwise ESCALATE.
+- IF-FAILED → if `Agent Configuration` never shows up, the beta unlock hasn't
+  propagated yet (re-check the hub sign-in used the right account email, wait, then
+  restart the app); on a token error → ERR-EVENAI-TOKEN; otherwise ESCALATE.
 
 ### P13 — Wrap-up
 Tell the user, briefly: what was installed and configured (plugin, token(s),
