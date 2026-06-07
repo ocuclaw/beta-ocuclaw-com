@@ -23,7 +23,7 @@
   --lens: #4dd58a;
   --lens-dim: #2f8c58;
   --glow: rgba(77,213,138,0.4);
-  --serif: 'Instrument Serif', 'Times New Roman', serif;
+  --serif: 'Pixelify Sans', 'Times New Roman', serif;
   --sans: 'Inter', system-ui, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, monospace;
   --w: 1120px;
@@ -130,16 +130,10 @@ a{color:inherit;text-decoration:none}
 .hero__hud::after{content:'';position:absolute;left:50%;top:50%;width:120%;height:140%;transform:translate(-50%,-50%);z-index:0;pointer-events:none;background:radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.05), transparent 50%);mix-blend-mode:screen;border-radius:50%;filter:blur(10px)}
 .hud{
   width:100%;max-width:520px;margin:0;position:relative;z-index:1;
-  border:1.5px solid var(--lens);
   background:rgba(10,18,12,0.5);
-  box-shadow:0 0 80px rgba(77,213,138,0.18), inset 0 0 50px rgba(77,213,138,0.06);
   font-family:var(--mono);font-size:12.5px;color:#cfe8d4;
-  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
   transition:transform 300ms cubic-bezier(.2,.8,.2,1);
 }
-.hud::before,.hud::after{content:'';position:absolute;width:18px;height:18px;border:1.5px solid var(--lens);pointer-events:none}
-.hud::before{top:-3px;left:-3px;border-right:none;border-bottom:none}
-.hud::after{bottom:-3px;right:-3px;border-left:none;border-top:none}
 .hud__bar{display:flex;justify-content:space-between;padding:11px 16px;border-bottom:1px dashed rgba(77,213,138,0.3);font-size:10.5px;letter-spacing:0.18em;text-transform:uppercase;color:var(--lens)}
 .hud__bar b{font-weight:500;color:#fff}
 .hud__body{padding:14px 16px 10px;display:grid;gap:5px;height:200px;overflow:hidden;align-content:start}
@@ -214,7 +208,7 @@ a{color:inherit;text-decoration:none}
 .tweaks__val{color:var(--lens);font-variant-numeric:tabular-nums}
 
 /* M1 Diorama HUD video panel */
-.hud--video .hud__video{position:relative;background:transparent;overflow:hidden;border-top:1px dashed rgba(77,213,138,0.3);border-bottom:1px dashed rgba(77,213,138,0.3);aspect-ratio:2/1;isolation:isolate}
+.hud--video .hud__video{position:relative;background:transparent;overflow:hidden;aspect-ratio:2/1;isolation:isolate}
 .hud--video .hud__video video{width:100%;height:100%;display:block;object-fit:contain;mix-blend-mode:screen;filter:url(#lens-tint) contrast(0.85) brightness(1.9)}
 .hud--video .hud__video::after{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg, rgba(77,213,138,0.04) 0 2px, transparent 2px 4px)}
 .hud--video .hud__video::before{content:'REC · 0L';position:absolute;top:8px;right:10px;font-family:var(--mono);font-size:9px;letter-spacing:0.18em;color:var(--lens);text-shadow:0 0 6px var(--glow);z-index:2}
@@ -845,16 +839,30 @@ a{color:inherit;text-decoration:none}
   to  {opacity:1; transform: translateY(0)}
 }
 
-/* Video reveal: CRT power-on — vertical pinch expanding to full, brightness ramp */
+/* Video reveal: CRT power-on. The filter (brightness/saturation ramp) stays on
+   .hud__video so it affects video, scanlines, and the snap line together —
+   same as index.html. The iris clip-path moved off the container onto the
+   video + ::after scanlines so the ::before snap line is no longer clipped:
+   it can still split outward from the center during 0–30% before the screen
+   opens. Initial inset is tightened to 50% so no tiny strip of video shows
+   through that early phase. */
 .hud--video .hud__video{
   animation: screenWake 1.6s cubic-bezier(.22,.8,.32,1) 0.5s both;
 }
 @keyframes screenWake{
-  0%   {clip-path: inset(48% 0 48% 0); filter: brightness(1.6) saturate(0)}
-  35%  {clip-path: inset(48% 0 48% 0); filter: brightness(2.2) saturate(0)}
-  55%  {clip-path: inset(0 0 0 0);     filter: brightness(1.8) saturate(0.4)}
-  80%  {clip-path: inset(0 0 0 0);     filter: brightness(1.1) saturate(0.95)}
-  100% {clip-path: inset(0 0 0 0);     filter: brightness(1) saturate(1)}
+  0%   {filter: brightness(1.6) saturate(0)}
+  35%  {filter: brightness(2.2) saturate(0)}
+  55%  {filter: brightness(1.8) saturate(0.4)}
+  80%  {filter: brightness(1.1) saturate(0.95)}
+  100% {filter: brightness(1) saturate(1)}
+}
+.hud--video .hud__video video,
+.hud--video .hud__video::after{
+  animation: screenWakeIris 1.6s cubic-bezier(.22,.8,.32,1) 0.5s both;
+}
+@keyframes screenWakeIris{
+  0%,35%   {clip-path: inset(50% 0 50% 0)}
+  55%,100% {clip-path: inset(0 0 0 0)}
 }
 /* Single sweeping highlight at the moment the screen "snaps" open */
 .hud--video .hud__video::before{
@@ -1135,10 +1143,6 @@ a{color:inherit;text-decoration:none}
     <div class="hero__hud hud-stereo">
       <div class="hud-halo" id="hudHalo" aria-hidden="true"></div>
       <div class="hud hud--video">
-        <div class="hud__bar">
-          <span>lens · L · live</span>
-          <span><b>⍜‿⍜</b></span>
-        </div>
         <div class="hud__video">
           <video src="uploads/menu-driven-new-session.webm" autoplay muted loop playsinline></video>
         </div>
@@ -1275,26 +1279,6 @@ a{color:inherit;text-decoration:none}
       <option value="off">Off</option>
     </select>
   </div>
-  <div class="tweaks__row">
-    <label>Serif</label>
-    <select id="tw-serif">
-      <optgroup label="Serif">
-        <option value="Instrument Serif">Instrument Serif</option>
-        <option value="Newsreader">Newsreader</option>
-        <option value="Fraunces">Fraunces</option>
-        <option value="EB Garamond">EB Garamond</option>
-        <option value="Playfair Display">Playfair Display</option>
-        <option value="Times New Roman">Times New Roman</option>
-      </optgroup>
-      <optgroup label="Pixel / Mono">
-        <option value="Pixelify Sans">Pixelify Sans</option>
-        <option value="VT323">VT323</option>
-        <option value="Silkscreen">Silkscreen</option>
-        <option value="JetBrains Mono">JetBrains Mono</option>
-        <option value="Major Mono Display">Major Mono Display</option>
-      </optgroup>
-    </select>
-  </div>
 </aside>
 
 <script>
@@ -1352,8 +1336,7 @@ a{color:inherit;text-decoration:none}
     "layers": 5,
     "halo": 40,
     "glow": 1.3,
-    "drift": "on",
-    "serif": "Pixelify Sans"
+    "drift": "on"
   }/*EDITMODE-END*/;
 
   var state = Object.assign({}, TWEAK_DEFAULTS);
@@ -1442,8 +1425,6 @@ a{color:inherit;text-decoration:none}
     halo.querySelectorAll('i').forEach(function(el){
       el.style.animationPlayState = state.drift==='on' ? 'running' : 'paused';
     });
-    // serif
-    root.style.setProperty('--serif', '"'+state.serif+'", Georgia, serif');
   }
 
   // --- mouse / orientation parallax ---
@@ -1628,10 +1609,6 @@ a{color:inherit;text-decoration:none}
   var driftSel = document.getElementById('tw-drift');
   driftSel.value = state.drift;
   driftSel.addEventListener('change', function(e){ set('drift', e.target.value); });
-
-  var serifSel = document.getElementById('tw-serif');
-  serifSel.value = state.serif;
-  serifSel.addEventListener('change', function(e){ set('serif', e.target.value); });
 
   // initial build
   buildField();
