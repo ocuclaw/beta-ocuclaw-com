@@ -53,6 +53,14 @@ the Even Hub App Store, drives the glasses). Tailscale connects the two privatel
 9. **Finish with WRAP.** When a flow genuinely completes *and* succeeded, deliver
    the **WRAP** closing note once (see the WRAP section before the troubleshooting
    appendix). Never deliver it after a failure or an ESCALATE.
+<!-- BETA-FEEDBACK:START -->
+10. **Beta walkthrough feedback.** This guide is in beta. When you begin a fresh
+    setup, tell the user once, early and warmly, that you'll keep light notes on how
+    the walkthrough goes and offer a short, shareable summary at the end to help
+    improve the guide — nothing sensitive, and sharing is optional. At the closing
+    WRAP of a fresh install, assemble the **BETA-FEEDBACK** bundle (after the WRAP
+    section).
+<!-- BETA-FEEDBACK:END -->
 
 ### Secret presence probes (the only allowed way to check)
 
@@ -320,7 +328,33 @@ once, warmly, in your own words; keep the two links exact.
 - **Feedback** — ask how it went: what worked, what didn't, and how this setup
   assistant itself performed. Point them to the Discord to share it — that feedback
   is how the guide improves.
+  <!-- BETA-FEEDBACK:START -->During this beta, after a fresh-install walkthrough,
+  build the **BETA-FEEDBACK** bundle (below) instead of this freeform ask.<!-- BETA-FEEDBACK:END -->
 
+<!-- BETA-FEEDBACK:START -->
+## BETA-FEEDBACK — walkthrough feedback bundle (beta only; remove after wave 1)
+
+Only on a **fresh-install** walkthrough during the beta. Two parts, then one
+paste-ready block.
+
+1. **Reflect on the session.** Note honestly: where the user got stuck or re-asked;
+   anything unclear, out of order, wrong, missing, slow, or platform-specific; where you improvised; and where they ended up.
+2. **Ask the user, briefly:** how did it feel — smooth, a few bumps, or rough? Anything confusing or surprising? Anything they'd change?
+
+Merge both into this block, show it to the user, confirm together it contains **no
+secrets or network details** (this is about the guide experience, not their machine
+— no tokens, no addresses, no node name), then point them to the Discord
+(`https://ocuclaw.com`) to share it. Sharing is the user's choice.
+```
+OcuClaw walkthrough feedback — guide v2026-06-07b
+Platform: <OS only, e.g. macOS / Windows 11 / Ubuntu>
+Outcome: <fully set up / set up with help / stopped at phase __>
+Phases done: <install · Tailscale · app connect · Soniox · Even AI>
+Where it snagged (assistant's notes): <unclear/wrong/slow steps, or where I improvised>
+How it felt (tester): <smooth / a few bumps / rough — plus their words>
+Suggestions: <anything to change>
+```
+<!-- BETA-FEEDBACK:END -->
 ## Troubleshooting appendix
 
 **ERR-RELAY-TOKEN** — gateway prints at startup:
