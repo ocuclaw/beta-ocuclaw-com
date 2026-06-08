@@ -30,19 +30,24 @@ the Even Hub App Store, drives the glasses). Tailscale connects the two privatel
    echo, store, or read a token, password, or API key. The *user* runs the
    documented `openclaw config set …` command for each secret in their own
    terminal (P3 / P11 / P12 show which). To check a secret is set, use only the
-   count-only probes below — never run a bare `config get` on the config (it would
-   print the values), never read the config file.
+   count-only probes below — never run a bare `config get` on a secret leaf (it
+   prints that value), never read the config file.
 4. **Never expose publicly.** Tailscale **Serve** only — never `tailscale
    funnel` (that makes the relay public). Never edit OpenClaw's config file by
    hand; configuration changes go through `openclaw config set` — non-secret
    values you may set yourself, secret values only the user sets (rule 3).
 5. **Gauge the user once, early:** "Have you used a terminal before?" Novice →
-   plain words, no jargon. Expert → terse. Same checkpoints either way.
-6. **Commands you can't run, the user runs.** Probe `sudo -n true` once; if it
-   fails you can't elevate, so every `sudo` command below moves to the user's
-   terminal. The same rule covers anything your execution policy or sandbox
-   blocks: don't force it — give the user the exact command to run, then verify
-   the result.
+   plain words, no jargon. Expert → terse. Same checkpoints either way. Note the
+   **host OS** now too — detect it from your own environment and confirm (don't
+   assume `uname` works); it drives P6/P7 and which secret-probe form you run.
+6. **Commands you can't run, the user runs.** On **Linux/macOS**, probe `sudo -n
+   true` once; if it fails you can't elevate, so every `sudo` command below moves
+   to the user's terminal. On **Windows** there is no ambient elevation: the
+   admin-required commands run in an **Administrator PowerShell**, which you
+   usually can't spawn yourself, so those go to the user too. Global rule — a
+   `sudo`-prefixed command in this document is the Unix form; on Windows run the
+   same command **without `sudo`** in an Administrator PowerShell. Same "give it to
+   the user" handling for anything your policy or sandbox blocks — then verify.
 7. **Restart warning.** Before any `openclaw gateway restart`, tell the user:
    "I may go quiet for ~30s. If I don't come back, send me this document's URL
    again and I'll resume where we left off."
@@ -64,16 +69,25 @@ the Even Hub App Store, drives the glasses). Tailscale connects the two privatel
 
 ### Secret presence probes (the only allowed way to check)
 
-Each prints `1` (set) or `0` (missing) — the value itself never appears.
-**⚠️ Always run the whole pipe.** The `openclaw config get …` on the left, by
-itself, prints the full config object **including secret values** — never run it
-alone, and never "simplify" a probe by dropping the `| grep -c …`.
+Each prints `1` (set / true) or `0` (missing / false) — the value never appears.
+Run the form for your host OS (rule 5). **⚠️ Run the whole line:** a targeted
+`config get` on a secret leaf prints that one secret value if you drop the
+`| grep -c …` (or, on Windows, the `-match` / `-eq` test). Never run it alone.
 
+**Linux / macOS (bash/zsh):**
 ```bash
-openclaw config get plugins.entries.ocuclaw.config 2>/dev/null | grep -c '"relayToken"'
-openclaw config get plugins.entries.ocuclaw.config 2>/dev/null | grep -c '"sonioxApiKey"'
-openclaw config get plugins.entries.ocuclaw.config 2>/dev/null | grep -c '"evenAiToken"'
-openclaw config get plugins.entries.ocuclaw.config 2>/dev/null | grep -c '"evenAiEnabled": true'
+openclaw config get plugins.entries.ocuclaw.config.relayToken    2>/dev/null | grep -c '[^[:space:]"]'
+openclaw config get plugins.entries.ocuclaw.config.sonioxApiKey  2>/dev/null | grep -c '[^[:space:]"]'
+openclaw config get plugins.entries.ocuclaw.config.evenAiToken   2>/dev/null | grep -c '[^[:space:]"]'
+openclaw config get plugins.entries.ocuclaw.config.evenAiEnabled 2>/dev/null | grep -c '^true$'
+```
+
+**Windows (PowerShell):**
+```powershell
+if ((openclaw config get plugins.entries.ocuclaw.config.relayToken    2>$null) -match '\S') {1} else {0}
+if ((openclaw config get plugins.entries.ocuclaw.config.sonioxApiKey  2>$null) -match '\S') {1} else {0}
+if ((openclaw config get plugins.entries.ocuclaw.config.evenAiToken   2>$null) -match '\S') {1} else {0}
+if ((openclaw config get plugins.entries.ocuclaw.config.evenAiEnabled 2>$null) -eq 'true')  {1} else {0}
 ```
 
 ## State assessment — run now, and after any restart or resume
@@ -116,8 +130,16 @@ Template: **GOAL · CHECK (skip-if) · DO · VERIFY · IF-FAILED → appendix ke
 - IF-FAILED → HOST-OLD.
 
 ### P2 — Install the plugin
+- ASK FIRST (routing): "Are you installing the **beta** build from the OcuClaw
+  Discord?" Route to beta only if they confirm they're a beta-testing Discord
+  member (same gate as B1, the full beta lane at the end); otherwise install stable.
 - CHECK: `openclaw plugins list` already shows `ocuclaw` → P3.
-- DO: `openclaw plugins install ocuclaw`
+- DO (stable — default): `openclaw plugins install ocuclaw`
+- DO (beta — only if they confirmed): first check the channel exists with
+  `npm view ocuclaw dist-tags`. If it lists a `beta` tag →
+  `openclaw plugins install ocuclaw@beta`. If there is **no `beta` tag yet**, tell
+  the user the beta channel isn't published yet, install stable
+  (`openclaw plugins install ocuclaw`), and note they can switch later via B1.
 - VERIFY: `openclaw plugins list` shows ocuclaw.
 - IF-FAILED → HOST-OLD; otherwise ESCALATE.
 
@@ -152,13 +174,24 @@ Template: **GOAL · CHECK (skip-if) · DO · VERIFY · IF-FAILED → appendix ke
 - GOAL: a free, private, encrypted tunnel so the phone can reach this machine
   from anywhere; only devices signed into the user's tailnet can connect.
 - CHECK: `tailscale status` shows signed in → P7.
-- DO (per platform):
+- DO (per platform — install, then sign in):
 
-  | Platform | Install | Sign in |
-  |---|---|---|
-  | Linux | `curl -fsSL https://tailscale.com/install.sh \| sh` | `sudo tailscale up`, user opens the printed URL and logs in |
-  | macOS | Mac App Store "Tailscale", or tailscale.com/download | open the app, sign in |
-  | Windows | tailscale.com/download/windows installer | sign in from the tray app |
+  | Platform | Sign in |
+  |---|---|
+  | Linux | `sudo tailscale up`, user opens the printed URL and logs in |
+  | macOS | open the Tailscale app, sign in |
+  | Windows | sign in from the tray app |
+
+  Install command by platform:
+  - **Linux:**
+    ```bash
+    curl -fsSL https://tailscale.com/install.sh | sh
+    ```
+  - **macOS:** install the **standalone package** from `tailscale.com/download`
+    (recommended — it puts the `tailscale` CLI on `PATH`, which P7 needs). The Mac
+    **App Store** build keeps its CLI at
+    `/Applications/Tailscale.app/Contents/MacOS/Tailscale` — call it via that full path in P7.
+  - **Windows:** run the installer from `tailscale.com/download/windows`.
 
 - VERIFY: `tailscale ip -4` prints a `100.x.y.z` address. (`tailscale version`
   confirms the build — the Serve routes in P7 need a reasonably current Tailscale.)
@@ -264,8 +297,9 @@ to **save these somewhere**, especially the `wss://<node>.<tailnet>.ts.net:8444`
 relay address, since they'll need it again and the node name is easy to lose. Then
 where settings live (app Settings tabs; glasses menu via double-tap from the message
 head), and a 3-line mini-tour: swipe to change pages, double-tap for the menu, tap
-to listen (if voice is on). Point them at the OcuClaw user manual for anything
-deeper, then deliver the **WRAP** closing note.
+to listen (if voice is on). If something comes up that you can't help them with,
+point them to the Discord (the WRAP note just below has the link), then
+deliver the **WRAP** closing note.
 
 ### U1 — Update OcuClaw (when already installed and healthy)
 - CHECK / LIST — gather the version landscape and translate it for the user:
@@ -346,7 +380,7 @@ secrets or network details** (this is about the guide experience, not their mach
 — no tokens, no addresses, no node name), then point them to the Discord
 (`https://ocuclaw.com`) to share it. Sharing is the user's choice.
 ```
-OcuClaw walkthrough feedback — guide v2026-06-07b
+OcuClaw walkthrough feedback — guide v2026-06-08
 Platform: <OS only, e.g. macOS / Windows 11 / Ubuntu>
 Outcome: <fully set up / set up with help / stopped at phase __>
 Phases done: <install · Tailscale · app connect · Soniox · Even AI>
@@ -408,10 +442,12 @@ with the user before turning anything off; never guess.
 
 **TS-SERVE-UNSUPPORTED** — if `tailscale serve` or the `--tls-terminated-tcp`
 flag is rejected as unknown, the host's Tailscale is too old: update it (re-run the
-P6 install command, or the OS package manager) and retry P7. If the routes apply
-but `https://…ts.net` / certificate provisioning fails, enable **MagicDNS** and
-**HTTPS certificates** for the tailnet in the admin console
-(login.tailscale.com/admin/dns), then retry.
+P6 install command, or the OS package manager) and retry P7. On **macOS**, a
+`tailscale: command not found` instead means the App Store build's CLI isn't on
+`PATH` — call it via `/Applications/Tailscale.app/Contents/MacOS/Tailscale`, or
+install the standalone package (P6). If the routes apply but `https://…ts.net` /
+certificate provisioning fails, enable **MagicDNS** and **HTTPS certificates** for
+the tailnet in the admin console (login.tailscale.com/admin/dns), then retry.
 
 **PHONE-NO-REACH** — check in order: is the phone's Tailscale app actually
 connected (VPN toggle on)? Same account as this machine (the phone shows up in
@@ -448,7 +484,7 @@ confirm `openclaw --version` works there first. Mind the quotes around tokens.
 breakdown, show it to the user, confirm together it contains no secrets, and
 point them at the OcuClaw Discord:
 ```
-OcuClaw setup help — guide v2026-06-07b
+OcuClaw setup help — guide v2026-06-08
 Platform/OS:
 openclaw --version:
 openclaw status --all (read-only, pasteable — confirm no secrets):
@@ -466,7 +502,7 @@ Already tried:
 show it to the user, confirm together it contains no secrets, and have them post it
 in the beta-testing Discord (`https://ocuclaw.com`):
 ```
-OcuClaw beta report — guide v2026-06-07b
+OcuClaw beta report — guide v2026-06-08
 Installed beta version (from plugins inspect):
 Platform/OS:
 openclaw --version:
@@ -491,8 +527,3 @@ If they'd rather drop back to stable in the meantime, that's B1's roll-back path
 | Check versions | `npm view ocuclaw version` (latest) · `dist-tags` (channels) · `versions` (history) |
 | Update / switch channel | `openclaw plugins update ocuclaw` (stable) · `install ocuclaw@beta` · `install ocuclaw@latest` |
 | Community / support | Discord `https://ocuclaw.com` · `https://buymeacoffee.com/ocuclaw` |
-
-<!-- guide v2026-06-07b · Maintainers: install/network content is duplicated in
-     docs/user-manual.md and docs/Tailscale.md — update all three together. The WRAP
-     closing links mirror the app's HelpConstants.kt (Discord + Buy Me a Coffee).
-     Bump the version stamp on change. -->
