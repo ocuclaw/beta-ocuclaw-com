@@ -38,8 +38,9 @@ the Even Hub App Store, drives the glasses). Tailscale connects the two privatel
    values you may set yourself, secret values only the user sets (rule 3).
 5. **Gauge the user once, early:** "Have you used a terminal before?" Novice →
    plain words, no jargon. Expert → terse. Same checkpoints either way. Note the
-   **host OS** now too — detect it from your own environment and confirm (don't
-   assume `uname` works); it drives P6/P7 and which secret-probe form you run.
+   **host OS** now too: these read-only probes are explicitly allowed (rule 2) —
+   `uname -s` (Linux/macOS), `sw_vers` (macOS), `$PSVersionTable` / `ver` (Windows).
+   Confirm with the user; the OS drives P6/P7 and which secret-probe form you run.
 6. **Commands you can't run, the user runs.** On **Linux/macOS**, probe `sudo -n
    true` once; if it fails you can't elevate, so every `sudo` command below moves
    to the user's terminal. On **Windows** there is no ambient elevation: the
@@ -137,9 +138,10 @@ Template: **GOAL · CHECK (skip-if) · DO · VERIFY · IF-FAILED → appendix ke
 - DO (stable — default): `openclaw plugins install ocuclaw`
 - DO (beta — only if they confirmed): first check the channel exists with
   `npm view ocuclaw dist-tags`. If it lists a `beta` tag →
-  `openclaw plugins install ocuclaw@beta`. If there is **no `beta` tag yet**, tell
-  the user the beta channel isn't published yet, install stable
-  (`openclaw plugins install ocuclaw`), and note they can switch later via B1.
+  `openclaw plugins install ocuclaw@beta`. If there is **no `beta` tag yet**, do
+  NOT silently fall back: tell the user the beta channel isn't published yet and
+  ask whether to **stop here** (retry once it's published) or **install stable
+  instead** (`openclaw plugins install ocuclaw`); they can switch to beta later via B1.
 - VERIFY: `openclaw plugins list` shows ocuclaw.
 - IF-FAILED → HOST-OLD; otherwise ESCALATE.
 
@@ -167,6 +169,8 @@ Template: **GOAL · CHECK (skip-if) · DO · VERIFY · IF-FAILED → appendix ke
 - DO: give the restart warning, then `openclaw gateway restart`
 - VERIFY: `openclaw gateway status` healthy; `openclaw plugins inspect ocuclaw`
   shows `Status: loaded`; `openclaw plugins doctor` reports no ocuclaw issues.
+  (Unrelated `doctor`/`config` warnings about *other* plugins or host settings
+  don't block — only ocuclaw-specific failures do.)
 - IF-FAILED → GW-DOWN; if the startup log shows the relayToken error verbatim →
   ERR-RELAY-TOKEN.
 
@@ -174,24 +178,28 @@ Template: **GOAL · CHECK (skip-if) · DO · VERIFY · IF-FAILED → appendix ke
 - GOAL: a free, private, encrypted tunnel so the phone can reach this machine
   from anywhere; only devices signed into the user's tailnet can connect.
 - CHECK: `tailscale status` shows signed in → P7.
-- DO (per platform — install, then sign in):
+- DO (per platform — install first, then sign in):
+
+  Install:
+  - **Linux:**
+    ```bash
+    curl -fsSL https://tailscale.com/install.sh | sh
+    ```
+    (The install script needs root; if you can't elevate — rule 6's `sudo -n true`
+    failed — hand this command to the user to run.)
+  - **macOS:** install the **standalone package** from `tailscale.com/download`
+    (recommended — it puts the `tailscale` CLI on `PATH`, which P7 needs). The Mac
+    **App Store** build keeps its CLI at
+    `/Applications/Tailscale.app/Contents/MacOS/Tailscale` — call it via that full path in P7.
+  - **Windows:** run the installer from `tailscale.com/download/windows`.
+
+  Then sign in:
 
   | Platform | Sign in |
   |---|---|
   | Linux | `sudo tailscale up`, user opens the printed URL and logs in |
   | macOS | open the Tailscale app, sign in |
   | Windows | sign in from the tray app |
-
-  Install command by platform:
-  - **Linux:**
-    ```bash
-    curl -fsSL https://tailscale.com/install.sh | sh
-    ```
-  - **macOS:** install the **standalone package** from `tailscale.com/download`
-    (recommended — it puts the `tailscale` CLI on `PATH`, which P7 needs). The Mac
-    **App Store** build keeps its CLI at
-    `/Applications/Tailscale.app/Contents/MacOS/Tailscale` — call it via that full path in P7.
-  - **Windows:** run the installer from `tailscale.com/download/windows`.
 
 - VERIFY: `tailscale ip -4` prints a `100.x.y.z` address. (`tailscale version`
   confirms the build — the Serve routes in P7 need a reasonably current Tailscale.)
@@ -231,7 +239,9 @@ Template: **GOAL · CHECK (skip-if) · DO · VERIFY · IF-FAILED → appendix ke
   with the SAME account; leave the VPN toggle on. If the tailnet requires
   device approval, approve at login.tailscale.com/admin/machines.
 - VERIFY: the phone appears in `tailscale status` on this machine, and the
-  phone's Tailscale app shows Connected.
+  phone's Tailscale app shows Connected. If several devices show up in `tailscale
+  status`, don't guess — ask the user which one is their phone, and trust the phone
+  app's own "Connected" state as the source of truth.
 - IF-FAILED → PHONE-NO-REACH.
 
 ### P9 — OcuClaw app
@@ -258,8 +268,9 @@ Template: **GOAL · CHECK (skip-if) · DO · VERIFY · IF-FAILED → appendix ke
 - DO (user): sign up at soniox.com, create an API key in their console, then in
   their own terminal:
   `openclaw config set plugins.entries.ocuclaw.config.sonioxApiKey "your-soniox-api-key"`
-- DO (agent): restart warning, then `openclaw gateway restart`
-- VERIFY: sonioxApiKey probe = 1; the user taps to listen on the glasses and speaks.
+- DO (agent): confirm sonioxApiKey probe = 1 first (don't restart on an unset
+  key), then restart warning + `openclaw gateway restart`
+- VERIFY: the user taps to listen on the glasses and speaks.
 - IF-FAILED → ESCALATE (note that voice was the failing phase).
 
 ### P12 — Even AI integration (recommended)
