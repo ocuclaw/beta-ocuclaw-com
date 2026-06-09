@@ -12,7 +12,7 @@ you to set up OcuClaw — the OpenClaw client for Even Realities G2 smart glasse
 using this machine as the host. Do the work for them, but never silently.
 
 OcuClaw has two halves: a **plugin** (runs inside OpenClaw on this machine and
-hosts a relay on `localhost:9000`) and an **app** (installed on their phone from
+hosts a relay on a private loopback port — `localhost:47800` by default) and an **app** (installed on their phone from
 the Even Hub App Store, drives the glasses). Tailscale connects the two privately.
 
 ## Ground rules — read once, apply everywhere
@@ -100,7 +100,7 @@ if ((openclaw config get plugins.entries.ocuclaw.config.evenAiEnabled 2>$null) -
 | C | relayToken set | relayToken probe above |
 | D | Gateway up, plugin loaded | `openclaw gateway status` · `openclaw plugins inspect ocuclaw` shows `Status: loaded` |
 | E | Tailscale installed + signed in | `tailscale status` |
-| F | Serve routes present | `tailscale serve status` |
+| F | Both Serve routes present AND proxying to the relay's `wsPort` | `tailscale serve status` (compare each backend `localhost:<port>` to `config get …wsPort`) |
 
 Enter at the FIRST matching row:
 
@@ -112,7 +112,7 @@ Enter at the FIRST matching row:
 | B: installed but not enabled | P4 |
 | D: gateway down / plugin not `loaded` | P5 |
 | E: missing or signed out | P6 |
-| F: routes missing, or old single-port scheme (`tcp://…:8443`) | P7 |
+| F: routes missing, old single-port scheme (`tcp://…:8443`), or present but proxying to a different local port than `wsPort` | P7 |
 | Host green; app not yet connected (ask the user) | P8 |
 | Everything green and the app connects | Offer U1 (stable update check); offer B1 only if they confirm they're a beta tester; then P11/P12 if unset; else P13 |
 
@@ -136,12 +136,8 @@ Template: **GOAL · CHECK (skip-if) · DO · VERIFY · IF-FAILED → appendix ke
   member (same gate as B1, the full beta lane at the end); otherwise install stable.
 - CHECK: `openclaw plugins list` already shows `ocuclaw` → P3.
 - DO (stable — default): `openclaw plugins install ocuclaw`
-- DO (beta — only if they confirmed): first check the channel exists with
-  `npm view ocuclaw dist-tags`. If it lists a `beta` tag →
-  `openclaw plugins install ocuclaw@beta`. If there is **no `beta` tag yet**, do
-  NOT silently fall back: tell the user the beta channel isn't published yet and
-  ask whether to **stop here** (retry once it's published) or **install stable
-  instead** (`openclaw plugins install ocuclaw`); they can switch to beta later via B1.
+- DO (beta — only if they confirmed): `openclaw plugins install ocuclaw@beta`
+  (the beta channel is published; see B1 for refresh / rollback).
 - VERIFY: `openclaw plugins list` shows ocuclaw.
 - IF-FAILED → HOST-OLD; otherwise ESCALATE.
 
@@ -162,17 +158,50 @@ Template: **GOAL · CHECK (skip-if) · DO · VERIFY · IF-FAILED → appendix ke
 ### P4 — Enable the plugin
 - CHECK: `openclaw plugins list` shows ocuclaw enabled → P5.
 - DO: `openclaw plugins enable ocuclaw`
+- DO (agent — non-secret, rule 4): grant OcuClaw's internal agent-lifecycle hooks so
+  per-session glasses display state resets cleanly at the end of each turn. Without it
+  those hooks are blocked and the gateway logs a warning on every run:
+  `openclaw config set plugins.entries.ocuclaw.hooks.allowConversationAccess true --strict-json`
 - VERIFY: list shows it enabled.
 - IF-FAILED: a rejection usually means the token didn't save → back to P3.
 
-### P5 — Restart the gateway, verify runtime
-- DO: give the restart warning, then `openclaw gateway restart`
-- VERIFY: `openclaw gateway status` healthy; `openclaw plugins inspect ocuclaw`
+### P5 — Set the relay backend port, restart the gateway, verify runtime
+- GOAL: bind the relay to a loopback port that is free on this host (Windows
+  often reserves `9000` via WinNAT), then load the plugin.
+- STEP 1 — ensure a host-safe relay backend port, deciding BY VALUE (not by
+  emptiness). Read the effective port (non-secret): `openclaw config get
+  plugins.entries.ocuclaw.config.wsPort`. IMPORTANT: for an enabled plugin this
+  returns the configured value OR the materialized schema default `9000`, so you
+  CANNOT tell "unset" from "deliberately 9000" — treat both the same:
+  - A specific NON-`9000` value (e.g. `47800`) → a deliberate choice; keep it,
+    make NO change. Go to Step 2.
+  - `9000` (or `Config path not found`) → the risky default is in effect; set a
+    safe port (you may run this yourself, rule 3):
+    1. Target `47800`.
+    2. Confirm `47800` is actually free on this host (read-only, all allowed):
+       - **Windows:** `netsh int ipv4 show excludedportrange protocol=tcp`
+         (WinNAT reservations — `47800` must not fall inside any start–end block)
+         AND `netstat -ano | findstr :47800` (no line = no live listener).
+       - **Linux:** `ss -ltnH "sport = :47800"` (no output = free).
+       - **macOS:** `lsof -nP -iTCP:47800 -sTCP:LISTEN` (no output = free).
+       If `47800` is reserved or in use, walk this ladder, re-checking each, until
+       one is free: `47800 → 43117 → 38271`. (Even if you skip this, P5's VERIFY +
+       RELAY-PORT-CLAIMED still catch a bad bind on every OS.)
+    3. Set it (replace `<port>` with the number you chose; keep `--strict-json`):
+       `openclaw config set plugins.entries.ocuclaw.config.wsPort <port> --strict-json`
+- STEP 2 — restart if needed: if you changed the port in Step 1, OR the gateway
+  is not already healthy with ocuclaw `Status: loaded` (State Assessment D red),
+  give the restart warning, then `openclaw gateway restart`. If you changed
+  nothing and D was already green, you may skip the restart.
+- VERIFY (always, before leaving P5 — never continue to P6 without a loaded
+  relay): `openclaw gateway status` healthy; `openclaw plugins inspect ocuclaw`
   shows `Status: loaded`; `openclaw plugins doctor` reports no ocuclaw issues.
   (Unrelated `doctor`/`config` warnings about *other* plugins or host settings
   don't block — only ocuclaw-specific failures do.)
-- IF-FAILED → GW-DOWN; if the startup log shows the relayToken error verbatim →
-  ERR-RELAY-TOKEN.
+- IF-FAILED → if the startup log shows a relay bind/port error (`EADDRINUSE`,
+  `WSAEACCES`, "address already in use", "forbidden by its access permissions")
+  → RELAY-PORT-CLAIMED; else GW-DOWN; if it shows the relayToken error verbatim
+  → ERR-RELAY-TOKEN.
 
 ### P6 — Tailscale on this machine
 - GOAL: a free, private, encrypted tunnel so the phone can reach this machine
@@ -213,21 +242,31 @@ Template: **GOAL · CHECK (skip-if) · DO · VERIFY · IF-FAILED → appendix ke
   | `:8444` | direct TCP (TLS-terminated) | the OcuClaw app — stabler, no HTTP proxy in the path |
   | `:8443` | HTTPS proxy | Even AI's agent endpoint (P12) |
 
-- CHECK: `tailscale serve status` already shows both → P8. Shows `tcp://…:8443`
-  (old scheme) → MIGRATE-8443 first.
-- DO (sudo lane; on Windows use an Administrator PowerShell and drop `sudo`):
+- RESOLVE `<port>` FIRST (you may have entered P7 directly without running P5):
+  read the relay's ACTUAL backend port (non-secret) — `openclaw config get
+  plugins.entries.ocuclaw.config.wsPort` (returns the configured value or the
+  materialized default `9000`). If it returns `9000` — the risky default that P5
+  is meant to move off — run P5 (Step 1 + Step 2) now, then re-read. `<port>` is
+  the resulting non-`9000` value, used in every command below.
+- CHECK: `tailscale serve status` already shows both routes AND both proxy to
+  `localhost:<port>` → P8. If both exist but point at a different local port (e.g.
+  an old `:9000`), the relay moved — re-run the DO commands below with `<port>`.
+  Shows `tcp://…:8443` (old scheme) → MIGRATE-8443 first.
+- DO (sudo lane; on Windows use an Administrator PowerShell and drop `sudo`).
+  Point both routes at `<port>` — substitute it in **both** commands (the example
+  shows the `47800` default):
   ```bash
-  sudo tailscale serve --bg --tls-terminated-tcp=8444 tcp://localhost:9000
-  sudo tailscale serve --bg --https=8443 http://localhost:9000
+  sudo tailscale serve --bg --tls-terminated-tcp=8444 tcp://localhost:47800
+  sudo tailscale serve --bg --https=8443 http://localhost:47800
   ```
-- VERIFY: `tailscale serve status` contains both blocks (other routes may also
-  exist — leave them alone):
+- VERIFY: `tailscale serve status` contains both blocks, each proxying to
+  `localhost:<port>` (`47800` by default; other routes may also exist — leave them alone):
   ```
   |-- tcp://<node>.<tailnet>.ts.net:8444 (TLS terminated, tailnet only)
-  |--> tcp://localhost:9000
+  |--> tcp://localhost:47800
 
   https://<node>.<tailnet>.ts.net:8443 (tailnet only)
-  |-- / proxy http://localhost:9000
+  |-- / proxy http://localhost:47800
   ```
   Note the machine name from that output (`<node>.<tailnet>.ts.net`) — the
   user's addresses are built from it.
@@ -247,7 +286,11 @@ Template: **GOAL · CHECK (skip-if) · DO · VERIFY · IF-FAILED → appendix ke
 ### P9 — OcuClaw app
 - DO (user, phone): Even Realities app → Even Hub App Store → install and open
   OcuClaw. In Relay Server enter:
-  - Address: `wss://<node>.<tailnet>.ts.net:8444` (fill in the real machine name from P7)
+  - Address: `wss://<node>.<tailnet>.ts.net:8444` (fill in the real machine name
+    from P7). **⚠️ Must start with `wss://` (not `ws://`) and use the external
+    port `:8444` — not `:8443` (the Even AI door), and not the relay's local
+    `wsPort` (e.g. `47800`), which is loopback-only and never reachable from the
+    phone.** The user types this by hand, so it's the easiest place to slip.
   - Token: the relay password created in P3
   Tap Connect.
 - VERIFY: the app shows Connected and OpenClaw Status fills in (session, model).
@@ -263,10 +306,11 @@ Template: **GOAL · CHECK (skip-if) · DO · VERIFY · IF-FAILED → appendix ke
 
 ### P11 — Voice input via Soniox (recommended — most users set this up)
 - Pitch honestly: talk to the agent from the glasses instead of typing. Needs a
-  free Soniox account; the key is set the same way the relay token was.
-  Skippable → P12.
-- DO (user): sign up at soniox.com, create an API key in their console, then in
-  their own terminal:
+  Soniox account — free to create, but transcription needs a little credit on it.
+  The key is set the same way the relay token was. Skippable → P12.
+- DO (user): sign up at soniox.com, add payment info and load some credit onto the
+  account (Soniox needs a positive balance to transcribe), create an API key in
+  their console, then in their own terminal:
   `openclaw config set plugins.entries.ocuclaw.config.sonioxApiKey "your-soniox-api-key"`
 - DO (agent): confirm sonioxApiKey probe = 1 first (don't restart on an unset
   key), then restart warning + `openclaw gateway restart`
@@ -307,8 +351,7 @@ Tailscale routes, app), and their two addresses (quick reference below) — tell
 to **save these somewhere**, especially the `wss://<node>.<tailnet>.ts.net:8444`
 relay address, since they'll need it again and the node name is easy to lose. Then
 where settings live (app Settings tabs; glasses menu via double-tap from the message
-head), and a 3-line mini-tour: swipe to change pages, double-tap for the menu, tap
-to listen (if voice is on). If something comes up that you can't help them with,
+head). If something comes up that you can't help them with,
 point them to the Discord (the WRAP note just below has the link), then
 deliver the **WRAP** closing note.
 
@@ -316,8 +359,7 @@ deliver the **WRAP** closing note.
 - CHECK / LIST — gather the version landscape and translate it for the user:
   - installed: `openclaw plugins inspect ocuclaw` (`Version:` line)
   - latest stable: `npm view ocuclaw version`
-  - channels: `npm view ocuclaw dist-tags` (shows `latest`, plus `beta` if a beta
-    channel exists)
+  - channels: `npm view ocuclaw dist-tags` (shows `latest` and `beta`)
   - recent history: `npm view ocuclaw versions` and `npm view ocuclaw time` — show
     the most recent few with dates, e.g. "you're on 1.2.4 (Apr 3); latest is 1.3.0
     (Jun 6)". Don't dump the whole list.
@@ -365,38 +407,47 @@ finish — keep going; WRAP comes at the real end. **Never** deliver it after a
 failure or an ESCALATE — don't ask for support when something is broken. Say it
 once, warmly, in your own words; keep the two links exact.
 
-- **Community** — invite them to the Discord at `https://ocuclaw.com` for setup
-  help, feature requests, bug reports, and general chat.
-- **Support the project** — OcuClaw is a one-person project, and contributions go
-  directly into active development. Never required, but hugely appreciated:
-  ☕ `https://buymeacoffee.com/ocuclaw`
+- **Community** — point them firmly at the Discord (`https://ocuclaw.com`): it's the
+  home for setup help, troubleshooting, feature requests, bug reports, beta chatter,
+  and general community. Encourage them to join, ask questions, and report anything
+  that bit them — it's where OcuClaw lives between releases.
+- **Support the project** — OcuClaw is built and maintained by **one person**, and
+  every donation goes directly into the project (it can always use more tokens!).
+  Never required, but hugely appreciated: ☕ `https://buymeacoffee.com/ocuclaw`
 - **Feedback** — ask how it went: what worked, what didn't, and how this setup
-  assistant itself performed. Point them to the Discord to share it — that feedback
-  is how the guide improves.
+  assistant itself performed. Offer them a short summary (their answer plus your own
+  notes) to post in the **`#install-assistant-feedback`** channel of the Discord —
+  that channel is how the guide improves.
   <!-- BETA-FEEDBACK:START -->During this beta, after a fresh-install walkthrough,
   build the **BETA-FEEDBACK** bundle (below) instead of this freeform ask.<!-- BETA-FEEDBACK:END -->
 
 <!-- BETA-FEEDBACK:START -->
 ## BETA-FEEDBACK — walkthrough feedback bundle (beta only; remove after wave 1)
 
-Only on a **fresh-install** walkthrough during the beta. Two parts, then one
-paste-ready block.
+Only on a **fresh-install** walkthrough during the beta. The goal is the user's own
+words — get those first, then hand them a clean block to paste.
 
-1. **Reflect on the session.** Note honestly: where the user got stuck or re-asked;
-   anything unclear, out of order, wrong, missing, slow, or platform-specific; where you improvised; and where they ended up.
-2. **Ask the user, briefly:** how did it feel — smooth, a few bumps, or rough? Anything confusing or surprising? Anything they'd change?
+1. **Ask the user first, briefly:** how did it feel — smooth, a few bumps, or rough?
+   Anything confusing, surprising, or that they'd change? Their words are the most
+   valuable part — capture them.
+2. **Add your own notes:** where the user got stuck or re-asked; anything unclear,
+   out of order, wrong, missing, slow, or platform-specific; where you improvised.
 
-Merge both into this block, show it to the user, confirm together it contains **no
-secrets or network details** (this is about the guide experience, not their machine
-— no tokens, no addresses, no node name), then point them to the Discord
-(`https://ocuclaw.com`) to share it. Sharing is the user's choice.
+Merge both into the block below, show it to the user, and confirm together it
+contains **no secrets or network details** (this is about the guide experience, not
+their machine — no tokens, no addresses, no node name). Then ask them to copy it
+into the **`#install-assistant-feedback`** channel in the OcuClaw Discord
+(`https://ocuclaw.com`). Sharing is their choice, but it's the single most useful
+thing they can do to improve the guide.
+
+**Copy-paste this into `#install-assistant-feedback`:**
 ```
-OcuClaw walkthrough feedback — guide v2026-06-08
+OcuClaw walkthrough feedback — guide v2026-06-09
 Platform: <OS only, e.g. macOS / Windows 11 / Ubuntu>
 Outcome: <fully set up / set up with help / stopped at phase __>
 Phases done: <install · Tailscale · app connect · Soniox · Even AI>
+How it felt (your words): <smooth / a few bumps / rough — plus anything you'd change>
 Where it snagged (assistant's notes): <unclear/wrong/slow steps, or where I improvised>
-How it felt (tester): <smooth / a few bumps / rough — plus their words>
 Suggestions: <anything to change>
 ```
 <!-- BETA-FEEDBACK:END -->
@@ -438,10 +489,11 @@ then run the P7 commands:
 ```bash
 sudo tailscale serve --tls-terminated-tcp=8443 off
 ```
-(If a legacy `https=8443` route already proxies to `http://localhost:9000`, it
-matches the new scheme — keep it and just add the `:8444` route.) After
-migrating, the app's relay address changes to `wss://…:8444` (P9); the Even AI
-URL stays on `:8443`.
+(If a legacy `https=8443` route already proxies to the actual relay port — the
+P5 `wsPort`, `47800` on new installs — keep it and just add the `:8444` route.
+If it points at a *different* port, such as the old `:9000`, re-run both P7
+commands so each route targets the actual P5 port.) After migrating, the app's
+relay address changes to `wss://…:8444` (P9); the Even AI URL stays on `:8443`.
 
 **TS-AUTH** — `tailscale up` requires the user to open the printed URL and log
 in themselves. `sudo` password prompts belong to the user. Corporate tailnets
@@ -465,13 +517,16 @@ connected (VPN toggle on)? Same account as this machine (the phone shows up in
 `tailscale status`)? Device pending approval at
 login.tailscale.com/admin/machines?
 
-**APP-CONNECT-FAIL** — separate token problems from address problems:
-- Address must be exactly `wss://<node>.<tailnet>.ts.net:8444` — common
-  mistakes: `https://` instead of `wss://`, `:8443` instead of `:8444`, typo'd
-  machine name.
-- Token mismatch produces no host-side error: have the user re-enter it, or
-  reset it via P3.
-- Relay actually up? `openclaw plugins inspect ocuclaw` shows `Status: loaded`.
+**APP-CONNECT-FAIL** — the address the user typed is the most common culprit, and
+you can't see it — have them **read back exactly** what's in the app's Address
+field:
+- `wss://` — not `ws://` (missing the secure `s`), not `https://`.
+- ends in `:8444` — not `:8443` (the Even AI door), and not the relay's local
+  `wsPort` (`47800` by default — loopback-only, never reachable from the phone).
+- machine name `<node>.<tailnet>.ts.net` spelled exactly as P7 printed it.
+Then the token (a mismatch produces no host-side error): have the user re-enter it,
+or reset via P3. Relay actually up? `openclaw plugins inspect ocuclaw` shows
+`Status: loaded`.
 
 **HOST-OLD** — OpenClaw below 2026.4.25 has a known plugin-install bug. Upgrade
 with `openclaw update` (the native path — it detects the install type, can run
@@ -484,6 +539,24 @@ the State Assessment.
 read-only, pasteable diagnosis), then `openclaw gateway status`, `openclaw gateway
 restart`, and `openclaw plugins doctor`. Read any errors to the user in plain words.
 
+**RELAY-PORT-CLAIMED** — the gateway is up but the relay couldn't bind its
+loopback port (startup log shows `EADDRINUSE`, `WSAEACCES`, "address already in
+use", or "forbidden by its access permissions"). The chosen port is taken or, on
+Windows, reserved by WinNAT. Fix: pick a free port and re-point everything at it.
+1. Find a genuinely free port (read-only, per OS):
+   - **Windows:** `netsh int ipv4 show excludedportrange protocol=tcp`
+     (reservations — avoid any listed block) AND `netstat -ano | findstr :<port>`
+     (no line = no live listener).
+   - **Linux:** `ss -ltnH "sport = :<port>"` (no output = free).
+   - **macOS:** `lsof -nP -iTCP:<port> -sTCP:LISTEN` (no output = free).
+   Walk the ladder `47800 → 43117 → 38271` (or any port in `30000–49151`),
+   checking each, until one is both reservation-free and not listening.
+2. Set it: `openclaw config set plugins.entries.ocuclaw.config.wsPort <port> --strict-json`
+3. Restart (give the restart warning): `openclaw gateway restart`, then confirm
+   `openclaw plugins inspect ocuclaw` shows `Status: loaded`.
+4. If P7 serve routes already exist, re-run both P7 commands with the new
+   `<port>` so they match.
+
 **TERM-HELP** — opening a terminal on this machine: Linux — Ctrl+Alt+T or
 "Terminal" in the app menu · macOS — Cmd+Space, type Terminal · Windows — Start
 menu, type PowerShell. If they normally reach this machine remotely, they
@@ -495,7 +568,7 @@ confirm `openclaw --version` works there first. Mind the quotes around tokens.
 breakdown, show it to the user, confirm together it contains no secrets, and
 point them at the OcuClaw Discord:
 ```
-OcuClaw setup help — guide v2026-06-08
+OcuClaw setup help — guide v2026-06-09
 Platform/OS:
 openclaw --version:
 openclaw status --all (read-only, pasteable — confirm no secrets):
@@ -513,7 +586,7 @@ Already tried:
 show it to the user, confirm together it contains no secrets, and have them post it
 in the beta-testing Discord (`https://ocuclaw.com`):
 ```
-OcuClaw beta report — guide v2026-06-08
+OcuClaw beta report — guide v2026-06-09
 Installed beta version (from plugins inspect):
 Platform/OS:
 openclaw --version:
@@ -531,7 +604,7 @@ If they'd rather drop back to stable in the meantime, that's B1's roll-back path
 |---|---|
 | Relay address (OcuClaw app) | `wss://<node>.<tailnet>.ts.net:8444` |
 | Even AI agent URL | `https://<node>.<tailnet>.ts.net:8443/v1/chat/completions` |
-| Relay backend | `localhost:9000` (hosted by the plugin) |
+| Relay backend | `localhost:<wsPort>` (plugin-hosted; `wsPort` = `47800` on a fresh install, or whatever P5 set/kept — confirm with `openclaw config get plugins.entries.ocuclaw.config.wsPort`) |
 | Install / enable / update | `openclaw plugins install ocuclaw` · `enable` · `update` |
 | Restart / status / doctor | `openclaw gateway restart` · `openclaw gateway status` · `openclaw plugins doctor` |
 | Config root | `plugins.entries.ocuclaw.config.*` via `openclaw config set` |
