@@ -41,6 +41,14 @@ the Even Hub App Store, drives the glasses). Tailscale connects the two privatel
    **host OS** now too: these read-only probes are explicitly allowed (rule 2) —
    `uname -s` (Linux/macOS), `sw_vers` (macOS), `$PSVersionTable` / `ver` (Windows).
    Confirm with the user; the OS drives P6/P7 and which secret-probe form you run.
+   On Linux, also probe once: `ls /.dockerenv /run/.containerenv 2>/dev/null` — if
+   either exists, OpenClaw runs **inside a container** (Docker or Podman — the
+   normal shape for VPS installs, which the official OpenClaw VPS guides set up). The **container lane** notes in P5–P7 then
+   apply, and every `tailscale` / `docker` command moves to the user's terminal on
+   the host machine (rule 6 lane) — those tools don't exist inside the container.
+   Ask where this machine runs (home computer / VPS — and which provider): how the
+   user reaches the host's own shell (SSH, web console) comes from that provider's
+   official docs (rule 2).
 6. **Commands you can't run, the user runs.** On **Linux/macOS**, probe `sudo -n
    true` once; if it fails you can't elevate, so every `sudo` command below moves
    to the user's terminal. On **Windows** there is no ambient elevation: the
@@ -101,6 +109,7 @@ if ((openclaw config get plugins.entries.ocuclaw.config.evenAiEnabled 2>$null) -
 | D | Gateway up, plugin loaded | `openclaw gateway status` · `openclaw plugins inspect ocuclaw` shows `Status: loaded` |
 | E | Tailscale installed + signed in | `tailscale status` |
 | F | Both Serve routes present AND proxying to the relay's `wsPort` | `tailscale serve status` (compare each backend `localhost:<port>` to `config get …wsPort`) |
+| G | Agent tool access — `ocuclaw` admitted past the tool profile | `openclaw config get tools` — pass if `alsoAllow` contains `"ocuclaw"`, or if `profile` is `full`/unset ("Config path not found" = pass) |
 
 Enter at the FIRST matching row:
 
@@ -110,6 +119,7 @@ Enter at the FIRST matching row:
 | B: not installed | P2 |
 | C: probe = 0 | P3 |
 | B: installed but not enabled | P4 |
+| G: `tools.profile` set but `"ocuclaw"` missing from `tools.alsoAllow` | P4 |
 | D: gateway down / plugin not `loaded` | P5 |
 | E: missing or signed out | P6 |
 | F: routes missing, old single-port scheme (`tcp://…:8443`), or present but proxying to a different local port than `wsPort` | P7 |
@@ -156,13 +166,28 @@ Template: **GOAL · CHECK (skip-if) · DO · VERIFY · IF-FAILED → appendix ke
 - IF-FAILED → TERM-HELP.
 
 ### P4 — Enable the plugin
-- CHECK: `openclaw plugins list` shows ocuclaw enabled → P5.
+- CHECK: `openclaw plugins list` shows ocuclaw enabled AND the tool-access step
+  below already passes its VERIFY → P5.
 - DO: `openclaw plugins enable ocuclaw`
 - DO (agent — non-secret, rule 4): grant OcuClaw's internal agent-lifecycle hooks so
   per-session glasses display state resets cleanly at the end of each turn. Without it
   those hooks are blocked and the gateway logs a warning on every run:
   `openclaw config set plugins.entries.ocuclaw.hooks.allowConversationAccess true --strict-json`
-- VERIFY: list shows it enabled.
+- DO (agent — non-secret, rule 4): make OcuClaw's agent tools visible to the agent.
+  Newer OpenClaw versions (2026.6+) default `tools.profile` to `"coding"`, a base
+  tool allowlist that filters out plugin-owned tools — the agent would see OcuClaw's
+  glasses-ui skill but couldn't call `render_glasses_ui` (symptom entry:
+  AGENT-TOOLS-FILTERED). Read the current list first (read-only):
+  `openclaw config get tools.alsoAllow`
+  - "Config path not found" or empty →
+    `openclaw config set tools.alsoAllow '["ocuclaw"]' --strict-json`
+  - a list without `"ocuclaw"` → re-set it to the existing entries **plus**
+    `"ocuclaw"` (merge — never drop entries the user already has)
+  - already contains `"ocuclaw"` → nothing to do
+  Takes effect at the P5 restart.
+- VERIFY: list shows it enabled, and `openclaw config get tools` shows `"ocuclaw"`
+  in `alsoAllow` — or shows no `profile` at all / "Config path not found" (older
+  hosts without tool profiles; that's a pass).
 - IF-FAILED: a rejection usually means the token didn't save → back to P3.
 
 ### P5 — Set the relay backend port, restart the gateway, verify runtime
@@ -189,15 +214,47 @@ Template: **GOAL · CHECK (skip-if) · DO · VERIFY · IF-FAILED → appendix ke
        RELAY-PORT-CLAIMED still catch a bad bind on every OS.)
     3. Set it (replace `<port>` with the number you chose; keep `--strict-json`):
        `openclaw config set plugins.entries.ocuclaw.config.wsPort <port> --strict-json`
-- STEP 2 — restart if needed: if you changed the port in Step 1, OR the gateway
-  is not already healthy with ocuclaw `Status: loaded` (State Assessment D red),
-  give the restart warning, then `openclaw gateway restart`. If you changed
-  nothing and D was already green, you may skip the restart.
+- STEP 1.5 — **container lane** (only if the rule 5 probe found a container
+  marker — `/.dockerenv` or `/run/.containerenv`):
+  the schema default `wsBind = 127.0.0.1` binds the relay to the *container's*
+  private loopback. Docker port publishing and the host's Tailscale connect via
+  the container's network interface instead — so a loopback-bound relay is
+  unreachable from outside the container even though every health check passes
+  (plugin `loaded`, "relay service started", zero errors).
+  **Exception first — host networking.** Have the user run (host terminal):
+  `docker inspect -f '{{.HostConfig.NetworkMode}}' <container>` — if it prints
+  `host`, the container shares the host's network stack: the loopback bind
+  already works, there is nothing to publish, and you must make **no changes
+  here** (setting `0.0.0.0` in host mode would bind the relay onto the VPS's
+  public interfaces). Skip the rest of this step. Otherwise (`bridge`,
+  `default`, a named network) fix BOTH halves:
+  1. Bind (you may run this yourself — non-secret):
+     `openclaw config set plugins.entries.ocuclaw.config.wsBind "0.0.0.0"`
+     Safe: that address only spans the container's private network; the host-side
+     publish below stays loopback-only and the relay token gates every
+     connection, so the tailnet remains the only external door.
+  2. Publish: Docker must publish the relay port to the **host's loopback only**
+     (`127.0.0.1:<port>:<port>`). You can't see or change that from inside the
+     container → walk **DOCKER-RELAY-UNREACHABLE** with the user now (it also
+     screens for a dangerous pre-existing `0.0.0.0` publish).
+- STEP 2 — restart if needed: if you changed the port or bind in Step 1/1.5, OR
+  the gateway is not already healthy with ocuclaw `Status: loaded` (State
+  Assessment D red), give the restart warning, then `openclaw gateway restart`.
+  If you changed nothing and D was already green, you may skip the restart.
 - VERIFY (always, before leaving P5 — never continue to P6 without a loaded
   relay): `openclaw gateway status` healthy; `openclaw plugins inspect ocuclaw`
   shows `Status: loaded`; `openclaw plugins doctor` reports no ocuclaw issues.
   (Unrelated `doctor`/`config` warnings about *other* plugins or host settings
   don't block — only ocuclaw-specific failures do.)
+  **Container lane adds two checks** (read-only): the startup log line reads
+  `relay service started on ws://0.0.0.0:<port>` (not `ws://127.0.0.1:…`), and
+  `curl -s -i --max-time 5 http://$(hostname -i):<port>/ | head -3` returns the
+  relay's `HTTP/1.1 404 Not Found` — that 404 is the relay itself answering on
+  the container's network interface and is the PASS signal; `connection refused`
+  means the bind change hasn't taken effect (restart pending or wsBind unset).
+  Third signal: the startup warning
+  `[ocuclaw] relay is bound to … inside a container` must be GONE after the
+  restart — if it still prints, the wsBind change didn't take.
 - IF-FAILED → if the startup log shows a relay bind/port error (`EADDRINUSE`,
   `WSAEACCES`, "address already in use", "forbidden by its access permissions")
   → RELAY-PORT-CLAIMED; else GW-DOWN; if it shows the relayToken error verbatim
@@ -206,6 +263,10 @@ Template: **GOAL · CHECK (skip-if) · DO · VERIFY · IF-FAILED → appendix ke
 ### P6 — Tailscale on this machine
 - GOAL: a free, private, encrypted tunnel so the phone can reach this machine
   from anywhere; only devices signed into the user's tailnet can connect.
+- **Container lane:** Tailscale belongs on the HOST (the machine/VPS itself), not
+  inside the container — every `tailscale` command in P6/P7 goes to the user's
+  host terminal (rule 6 lane). A failing `tailscale status` *inside* the
+  container proves nothing; have the user run it on the host.
 - CHECK: `tailscale status` shows signed in → P7.
 - DO (per platform — install first, then sign in):
 
@@ -248,6 +309,11 @@ Template: **GOAL · CHECK (skip-if) · DO · VERIFY · IF-FAILED → appendix ke
   materialized default `9000`). If it returns `9000` — the risky default that P5
   is meant to move off — run P5 (Step 1 + Step 2) now, then re-read. `<port>` is
   the resulting non-`9000` value, used in every command below.
+- **Container lane:** `localhost:<port>` in these commands is the **host's**
+  loopback. It only reaches the relay once P5's container lane is done (wsBind
+  `0.0.0.0` + the `127.0.0.1:<port>:<port>` Docker publish verified per
+  DOCKER-RELAY-UNREACHABLE) — otherwise the routes apply cleanly but lead to a
+  dead port.
 - CHECK: `tailscale serve status` already shows both routes AND both proxy to
   `localhost:<port>` → P8. If both exist but point at a different local port (e.g.
   an old `:9000`), the relay moved — re-run the DO commands below with `<port>`.
@@ -294,6 +360,9 @@ Template: **GOAL · CHECK (skip-if) · DO · VERIFY · IF-FAILED → appendix ke
   - Token: the relay password created in P3
   Tap Connect.
 - VERIFY: the app shows Connected and OpenClaw Status fills in (session, model).
+  Host-side confirmation (read-only): the gateway log (`openclaw logs`, or the
+  newest `/tmp/openclaw/openclaw-*.log`) shows
+  `[ocuclaw] relay client connected …` from the moment they tapped Connect.
 - IF-FAILED → APP-CONNECT-FAIL.
 
 ### P10 — End-to-end check
@@ -380,18 +449,28 @@ group, and they can be unstable. If that's not the user, do **not** install a be
 send them to **U1** for the stable release. Only continue here once the user
 confirms they're a beta tester.
 
-- INSTALL / REFRESH the newest beta:
-  - `openclaw plugins install ocuclaw@beta` — installs the current beta; re-run the
-    same command later to jump to a newer beta when one drops.
-  - If the Discord asks for a specific build instead, use
-    `openclaw plugins install ocuclaw@<that-version>` (e.g. `ocuclaw@1.3.0-beta.2`).
+- INSTALL / REFRESH the newest beta — **pick the verb by whether ocuclaw is already
+  installed** (`openclaw plugins list`). `install` is first-time only; it aborts with
+  "already installed" on an existing plugin. Use `update` to move an installed plugin
+  to a newer beta:
+  - Already installed (the usual case — refreshing to a newer beta, e.g. 1.3.2):
+    `openclaw plugins update ocuclaw@beta`. Re-run this later to jump to a newer beta
+    when one drops.
+  - Not yet installed (first time on this host): `openclaw plugins install ocuclaw@beta`.
+  - Specific build from the Discord: same verb with the pinned version —
+    `openclaw plugins update ocuclaw@1.3.0-beta.2` (already installed) or
+    `openclaw plugins install ocuclaw@1.3.0-beta.2` (first time).
   - Pre-flight: evenAiEnabled probe = 1 while evenAiToken probe = 0 → CASE-D first.
   - Then restart warning + `openclaw gateway restart`.
   - VERIFY: inspect shows the beta `Version:` and `Status: loaded`; quick P10
     message check. On success → deliver the **WRAP** closing note.
 - ROLL BACK to stable (if a beta misbehaves):
-  - `openclaw plugins install ocuclaw@latest`, then restart warning +
+  - `openclaw plugins install ocuclaw@latest --force`, then restart warning +
     `openclaw gateway restart`.
+  - Why `--force` here (not `update`): rolling back from a beta to stable is normally a
+    *downgrade*, and `install … --force` is OpenClaw's documented "overwrite the current
+    install" path. Plain `install ocuclaw@latest` aborts (already installed), and a bare
+    `update ocuclaw` would stay on beta (it reuses the tracked `@beta` spec).
   - VERIFY: inspect shows the stable `Version:` and `Status: loaded`. On success →
     deliver the **WRAP** closing note.
 - IF-FAILED → HOST-OLD if a beta needs a newer OpenClaw; otherwise assemble the
@@ -442,7 +521,7 @@ thing they can do to improve the guide.
 
 **Copy-paste this into `#install-assistant-feedback`:**
 ```
-OcuClaw walkthrough feedback — guide v2026-06-09
+OcuClaw walkthrough feedback — guide v2026-06-10
 Platform: <OS only, e.g. macOS / Windows 11 / Ubuntu>
 Outcome: <fully set up / set up with help / stopped at phase __>
 Phases done: <install · Tailscale · app connect · Soniox · Even AI>
@@ -517,16 +596,45 @@ connected (VPN toggle on)? Same account as this machine (the phone shows up in
 `tailscale status`)? Device pending approval at
 login.tailscale.com/admin/machines?
 
-**APP-CONNECT-FAIL** — the address the user typed is the most common culprit, and
+**APP-CONNECT-FAIL** — the relay logs every connection attempt, so collect
+evidence before guessing: have the user tap Connect, then read the tail of the
+gateway log (`openclaw logs`, or the newest `/tmp/openclaw/openclaw-*.log` on
+Linux/macOS):
+- `[ocuclaw] relay rejected connection: invalid token …` **anywhere in the last
+  minute** → token mismatch → re-enter it, or reset via P3. Done. (Repeat
+  rejects from the same address are collapsed into one line per 60s, and all
+  Tailscale-forwarded attempts share one address — so a fresh tap often prints
+  nothing new while an earlier reject line is still the live evidence.)
+- `[ocuclaw] relay client connected …` at that moment → the relay WAS reached —
+  don't chase the address; the problem is past connectivity (version banner in
+  the app, or app-side).
+- no connect **and no reject line in the last minute** → the attempt never
+  reached the relay → address/route problem: work the address checklist below,
+  re-verify the Serve routes (P7), and on a containerized host (rule 5 probe)
+  → DOCKER-RELAY-UNREACHABLE.
+
+The address the user typed is the most common culprit, and
 you can't see it — have them **read back exactly** what's in the app's Address
 field:
 - `wss://` — not `ws://` (missing the secure `s`), not `https://`.
 - ends in `:8444` — not `:8443` (the Even AI door), and not the relay's local
   `wsPort` (`47800` by default — loopback-only, never reachable from the phone).
 - machine name `<node>.<tailnet>.ts.net` spelled exactly as P7 printed it.
-Then the token (a mismatch produces no host-side error): have the user re-enter it,
-or reset via P3. Relay actually up? `openclaw plugins inspect ocuclaw` shows
-`Status: loaded`.
+Then the token (a mismatch logs the reject line above): have the user re-enter
+it, or reset via P3. Relay actually up? `openclaw plugins inspect ocuclaw` shows
+`Status: loaded`. Still failing on a containerized host (rule 5 probe found a
+container marker) → DOCKER-RELAY-UNREACHABLE.
+
+**AGENT-TOOLS-FILTERED** — everything is green and chat works on the glasses, but
+the agent says it can't render: it "knows about" glasses surfaces (the glasses-ui
+skill) yet reports `render_glasses_ui` (and `get_evenrealities_device_info`) as
+unavailable in its session. Cause: newer OpenClaw versions (2026.6+) default
+`tools.profile` to `"coding"` — a base tool allowlist that filters out
+plugin-owned tools. The skill text is not filtered, so the agent can describe a
+tool it cannot call. Check (read-only): `openclaw config get tools` — the broken
+state is a `profile` set with no `"ocuclaw"` in `alsoAllow`. Fix: run the P4
+tool-access step (merge `"ocuclaw"` into `tools.alsoAllow`), restart the gateway
+(rule 7 warning first), then re-test with P10.
 
 **HOST-OLD** — OpenClaw below 2026.4.25 has a known plugin-install bug. Upgrade
 with `openclaw update` (the native path — it detects the install type, can run
@@ -557,6 +665,63 @@ Windows, reserved by WinNAT. Fix: pick a free port and re-point everything at it
 4. If P7 serve routes already exist, re-run both P7 commands with the new
    `<port>` so they match.
 
+**DOCKER-RELAY-UNREACHABLE** — containerized OpenClaw (the normal VPS-install
+shape): everything reports healthy — plugin `loaded`, "relay service started",
+serve routes applied — but the app can't connect, and no
+`[ocuclaw] relay client connected` line appears when the user taps Connect.
+The relay also self-diagnoses this at startup — the gateway log shows
+`[ocuclaw] relay is bound to 127.0.0.1 inside a container — …` with the exact
+fix commands: seeing that warning confirms this entry. Two halves must BOTH hold: the relay binds
+beyond the container's loopback (P5 step 1.5, `wsBind = 0.0.0.0`), and Docker
+publishes the relay port to the **host's loopback only**. Work it with the user
+in their HOST terminal (their usual SSH; if they don't know how to reach their
+VPS's shell, ask which provider and follow that provider's official access
+docs — rule 2):
+1. `docker ps --format '{{.Names}} {{.Ports}}'` — find the OpenClaw container's
+   `<port>` mapping (`<port>` = the P5 `wsPort`):
+   - `127.0.0.1:<port>-><port>/tcp` → publish correct; recheck the bind (P5
+     container-lane VERIFY).
+   - `0.0.0.0:<port>->…` → ⚠️ **publicly exposed on the VPS's public IP** — fix
+     via step 2 so the tailnet is the only external door. (Seen in the field:
+     installs ship this without the user knowing.)
+   - no `<port>` mapping at all → check the network mode first:
+     `docker inspect -f '{{.HostConfig.NetworkMode}}' <name>` — `host` means the
+     container shares the host's network: the relay's loopback bind already
+     works and nothing can or should be published; if `wsBind` was changed to
+     `0.0.0.0`, set it back to `127.0.0.1` (host mode would otherwise expose the
+     relay on the VPS's public interfaces), restart, and re-run the plain
+     (non-container) P5 VERIFY. Any other mode → add the publish via step 2.
+2. Fix the publish — the path depends on how the container is managed; run
+   `docker compose ls` (host) first:
+   - **Compose-managed** (a project is listed): edit the file shown under
+     CONFIG FILES — in the OpenClaw service's `ports:` list add or correct to
+     `- "127.0.0.1:<port>:<port>"` (remove any stale mapping for an old relay
+     port) — then `docker compose -f <that file> up -d`.
+   - **Not compose-managed** (empty list — standalone `docker run`): the
+     container must be RECREATED with `-p 127.0.0.1:<port>:<port>` and otherwise
+     identical settings. Read them first — `docker inspect <name>` shows image,
+     volumes/mounts, env, and restart policy. Confirm the state lives on a
+     mount/volume (not the container's own filesystem) BEFORE removing anything,
+     write out the full `docker stop` / `docker rm` / `docker run …` sequence
+     for the user, and check with them at each step.
+   Either path restarts OpenClaw — give the rule 7 restart warning first. If you
+   (the agent) live inside that container, the restart also cuts THIS chat: hand
+   the user the complete remaining command list *and* the verify steps below
+   before they apply anything, plus a one-line resume note they can paste into a
+   fresh session.
+3. VERIFY (host): `docker ps` now shows `127.0.0.1:<port>-><port>/tcp`, and
+   `npx -y wscat -c ws://127.0.0.1:<port>` prints `Connected` then
+   `Disconnected (code: 4001, reason: "invalid_token")` — that close IS the
+   pass signal: the relay answered and asked for auth (the app supplies the real
+   token itself). `error: socket hang up` instead = still a forwarder with a
+   dead backend, NOT the relay — the relay always completes the handshake, so
+   recheck the publish target port and the bind.
+4. VERIFY (in container, once reconnected): P5's container-lane VERIFY — startup
+   log `ws://0.0.0.0:<port>`, and `curl -s -i --max-time 5
+   http://$(hostname -i):<port>/ | head -3` returns `404` (was
+   `connection refused` before the fix).
+Then resume where the flow left off (usually P7 or P9).
+
 **TERM-HELP** — opening a terminal on this machine: Linux — Ctrl+Alt+T or
 "Terminal" in the app menu · macOS — Cmd+Space, type Terminal · Windows — Start
 menu, type PowerShell. If they normally reach this machine remotely, they
@@ -568,7 +733,7 @@ confirm `openclaw --version` works there first. Mind the quotes around tokens.
 breakdown, show it to the user, confirm together it contains no secrets, and
 point them at the OcuClaw Discord:
 ```
-OcuClaw setup help — guide v2026-06-09
+OcuClaw setup help — guide v2026-06-10
 Platform/OS:
 openclaw --version:
 openclaw status --all (read-only, pasteable — confirm no secrets):
@@ -586,7 +751,7 @@ Already tried:
 show it to the user, confirm together it contains no secrets, and have them post it
 in the beta-testing Discord (`https://ocuclaw.com`):
 ```
-OcuClaw beta report — guide v2026-06-09
+OcuClaw beta report — guide v2026-06-10
 Installed beta version (from plugins inspect):
 Platform/OS:
 openclaw --version:
@@ -608,6 +773,8 @@ If they'd rather drop back to stable in the meantime, that's B1's roll-back path
 | Install / enable / update | `openclaw plugins install ocuclaw` · `enable` · `update` |
 | Restart / status / doctor | `openclaw gateway restart` · `openclaw gateway status` · `openclaw plugins doctor` |
 | Config root | `plugins.entries.ocuclaw.config.*` via `openclaw config set` |
+| Containerized host (Docker / VPS) | `wsBind` `0.0.0.0` + Docker publish `127.0.0.1:<wsPort>:<wsPort>` — never `0.0.0.0` on the host side (P5 step 1.5 / DOCKER-RELAY-UNREACHABLE) |
+| Agent tool access | `tools.alsoAllow` must include `"ocuclaw"` when `tools.profile` is set (P4 / AGENT-TOOLS-FILTERED) |
 | Check versions | `npm view ocuclaw version` (latest) · `dist-tags` (channels) · `versions` (history) |
-| Update / switch channel | `openclaw plugins update ocuclaw` (stable) · `install ocuclaw@beta` · `install ocuclaw@latest` |
+| Update / switch channel | `openclaw plugins update ocuclaw` (stable, stays on tracked channel) · `update ocuclaw@beta` (move to newer beta) · `install ocuclaw@latest --force` (roll back to stable) — `install` is first-time only; use `update` to move forward on a channel and `install … --force` to overwrite/downgrade |
 | Community / support | Discord `https://ocuclaw.com` · `https://buymeacoffee.com/ocuclaw` |
