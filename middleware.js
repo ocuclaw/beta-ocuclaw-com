@@ -1,7 +1,7 @@
 // Edge Middleware — runs at the CDN edge before any file is served.
 //
 // Default-deny: every path requires HTTP Basic Auth EXCEPT the ones listed in
-// `matcher` below (setup-assistant.md, fleet-control-center.html, and the
+// `matcher` below (setup-assistant.md, fleet-control-centre.html, and the
 // assets/fleet_screenshots/ folder), which stay fully public.
 //
 // The password is read from the SITE_PASSWORD env var (set it in the Vercel
@@ -9,7 +9,7 @@
 
 export const config = {
   // Match everything EXCEPT the public paths, favicon, and Vercel internals.
-  matcher: ['/((?!setup-assistant\\.md|fleet-control-center\\.html|assets/fleet_screenshots/|favicon\\.ico|_vercel).*)'],
+  matcher: ['/((?!setup-assistant\\.md|fleet-control-centre\\.html|assets/fleet_screenshots/|favicon\\.ico|_vercel).*)'],
 }
 
 export default function middleware(request) {
