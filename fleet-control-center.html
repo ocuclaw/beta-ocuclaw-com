@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fleet Control Center — develop for the glasses on a whole fleet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500;600&family=Pixelify+Sans:wght@400..700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+:root{
+  --bg:#0b0d0a; --bg-2:#0f1310; --ink:#f0f5ea; --ink-2:#cfe8d4;
+  --muted:rgba(240,245,234,0.55); --rule:rgba(240,245,234,0.10); --rule-2:rgba(240,245,234,0.18);
+  --lens:#4dd58a; --lens-dim:#2f8c58; --glow:rgba(77,213,138,0.4);
+  --serif:'Pixelify Sans','Times New Roman',serif; --sans:'Inter',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+  --w:1120px;
+  --ease:cubic-bezier(0.2,0,0,1);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.6;letter-spacing:-0.005em;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
+  background:radial-gradient(ellipse 80% 60% at 50% 16%,rgba(77,213,138,0.06),transparent 70%),
+  radial-gradient(ellipse at 50% 50%,transparent 50%,rgba(0,0,0,0.55) 100%),
+  repeating-linear-gradient(0deg,rgba(77,213,138,0.025) 0 2px,transparent 2px 4px)}
+::selection{background:var(--lens);color:#0b1910}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:var(--w);margin:0 auto;padding:0 40px;position:relative;z-index:2}
+@media (max-width:720px){.wrap{padding:0 22px}}
+
+/* masthead */
+.mast{position:sticky;top:0;z-index:20;background:color-mix(in oklab,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--rule)}
+.mast__row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;gap:16px}
+.mast__brand{font-family:var(--serif);font-size:21px;color:var(--ink);display:inline-flex;align-items:center;gap:10px}
+.mast__brand em{font-style:normal;color:var(--lens-dim);font-size:11px;font-family:var(--mono);letter-spacing:0.14em;text-transform:uppercase}
+.mast__nav{display:flex;gap:20px;font-family:var(--mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted)}
+.mast__nav a:hover{color:var(--lens)}
+@media (max-width:880px){.mast__nav{display:none}}
+
+/* hero */
+.hero{padding:60px 0 40px;position:relative;overflow:hidden}
+.hero__eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-bottom:20px;display:inline-flex;align-items:center;gap:12px}
+.hero__dot{width:7px;height:7px;border-radius:50%;background:var(--lens);box-shadow:0 0 10px var(--glow);animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{50%{opacity:0.4}}
+.hero__h{font-family:var(--serif);font-weight:400;font-size:clamp(38px,5.4vw,68px);line-height:1.0;letter-spacing:-0.02em;margin:0;text-wrap:balance;color:var(--ink);max-width:17ch}
+.hero__h em{font-style:italic;color:var(--lens);text-shadow:0 0 18px var(--glow)}
+.hero__sub{margin-top:22px;max-width:64ch;font-size:16px;line-height:1.6;color:var(--ink-2);opacity:0.9}
+.hero__sub b{color:var(--ink);font-weight:500}
+.hero__close{margin-top:18px;max-width:64ch;font-size:14.5px;color:var(--muted)}
+.hero__close b{color:var(--lens);font-weight:400}
+
+/* sections */
+.sec{padding:34px 0;border-top:1px solid var(--rule)}
+.sec__eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.sec__eyebrow span{color:var(--lens)}
+.sec__h{font-family:var(--serif);font-weight:400;font-size:clamp(26px,3.6vw,42px);line-height:1.05;letter-spacing:-0.02em;margin:0 0 14px;max-width:26ch;text-wrap:balance;color:var(--ink)}
+.sec__h em{font-style:italic;color:var(--lens);text-shadow:0 0 14px var(--glow)}
+.sec__lede{max-width:72ch;font-size:15.5px;color:var(--ink-2);opacity:0.86;margin:0}
+.sec__lede b{color:var(--ink);font-weight:500}
+.sec__lede code,p code,li code,td code,.col__d code{font-family:var(--mono);font-size:0.85em;color:var(--lens);background:rgba(77,213,138,0.08);padding:1px 5px;border-radius:3px;border:1px solid rgba(77,213,138,0.16)}
+
+/* diagram panel */
+.panel{position:relative;margin-top:26px;background:rgba(10,18,12,0.5);border:1px solid var(--rule-2);
+  clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
+  box-shadow:0 0 40px rgba(77,213,138,0.06),inset 0 0 50px rgba(77,213,138,0.02)}
+.panel::before,.panel::after{content:'';position:absolute;width:14px;height:14px;border:1px solid var(--lens);pointer-events:none;z-index:3}
+.panel::before{top:-2px;left:-2px;border-right:none;border-bottom:none}
+.panel::after{bottom:-2px;right:-2px;border-left:none;border-top:none}
+.panel__bar{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px dashed rgba(77,213,138,0.3);font-family:var(--mono);font-size:10.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--lens)}
+.panel__bar b{color:var(--muted);font-weight:400}
+.panel__body{padding:14px 14px 16px;overflow-x:auto}
+.mermaid{display:flex;justify-content:center;min-width:min-content}
+.mermaid svg{max-width:100%;height:auto}
+
+/* 3-col cards */
+.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--rule-2);margin-top:26px}
+@media (max-width:820px){.cols{grid-template-columns:1fr}.col{border-right:none !important}}
+.col{padding:15px 18px 15px 0;border-bottom:1px solid var(--rule-2);border-right:1px solid var(--rule)}
+.cols .col:nth-child(3n){border-right:none}
+.cols .col:not(:nth-child(3n+1)){padding-left:20px}
+.col__n{font-family:var(--mono);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--lens);margin-bottom:9px}
+.col__t{font-family:var(--serif);font-size:21px;line-height:1.15;margin:0 0 5px;font-weight:400;color:var(--ink)}
+.col__d{font-size:13.5px;color:var(--ink-2);line-height:1.5;opacity:0.82}
+
+/* stat band */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid var(--rule-2);margin-top:24px}
+@media (max-width:680px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{padding:15px 16px 15px 0;border-bottom:1px solid var(--rule-2);border-right:1px solid var(--rule)}
+.stats .stat:nth-child(4n){border-right:none}
+.stats .stat:not(:nth-child(4n+1)){padding-left:16px}
+.stat b{display:block;font-family:var(--serif);font-size:32px;line-height:1;color:var(--lens);text-shadow:0 0 14px var(--glow);font-weight:400}
+.stat span{display:block;margin-top:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:0.04em;color:var(--muted);text-transform:uppercase;line-height:1.4}
+.brand-spr{display:inline-flex;align-items:center;gap:10px;margin:4px 0 2px;font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);border:1px solid var(--rule-2);padding:6px 14px;border-radius:999px;background:rgba(10,18,12,0.45);transition:border-color 160ms}
+.brand-spr:hover{border-color:var(--lens)}
+.brand-spr img{height:24px;width:auto;flex:none;display:block;object-fit:contain}
+
+/* phone screenshot gallery */
+.shots{display:flex;flex-wrap:wrap;gap:18px;margin-top:26px;align-items:flex-start}
+.shot{margin:0;display:flex;flex-direction:column;gap:9px}
+.shot img{display:block;width:100%;height:auto;border:1px solid var(--rule-2);border-radius:10px;background:#000;box-shadow:0 0 26px rgba(77,213,138,0.06);cursor:zoom-in;transition:border-color 160ms,box-shadow 160ms}
+.shot img:hover{border-color:var(--lens);box-shadow:0 0 30px rgba(77,213,138,0.18)}
+.shot--p{width:150px}
+.shot--l{width:372px}
+.shot figcaption{font-family:var(--mono);font-size:10.5px;letter-spacing:0.04em;color:var(--muted);line-height:1.45}
+.shot figcaption b{display:block;color:var(--lens);font-weight:500;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:3px}
+@media (max-width:720px){.shot--p{width:44%}.shot--l{width:100%}}
+/* lightbox */
+.lightbox{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;background:rgba(5,8,6,0.93);backdrop-filter:blur(6px);cursor:zoom-out;padding:28px}
+.lightbox.is-open{display:flex}
+.lightbox img{max-width:95vw;max-height:90vh;width:auto;height:auto;border:1px solid var(--lens);border-radius:10px;box-shadow:0 0 60px rgba(77,213,138,0.28)}
+.lightbox__cap{position:fixed;bottom:18px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:11px;letter-spacing:0.08em;color:var(--ink-2);padding:0 20px}
+.lightbox__x{position:fixed;top:16px;right:22px;font-family:var(--mono);font-size:24px;line-height:1;color:var(--lens);cursor:pointer}
+
+/* table */
+.tbl{width:100%;border-collapse:collapse;margin-top:24px;font-size:13.5px}
+.tbl th,.tbl td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--rule);vertical-align:top}
+.tbl th{font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--lens);border-bottom:1px solid var(--rule-2)}
+.tbl td:first-child{font-family:var(--mono);font-size:12.5px;color:var(--ink);white-space:nowrap}
+.tbl td{color:var(--ink-2);opacity:0.9}
+
+/* callout */
+.note{margin-top:24px;border-left:2px solid var(--lens);background:rgba(77,213,138,0.05);padding:13px 18px;font-size:14px;color:var(--ink-2)}
+.note b{color:var(--lens);font-weight:500;font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;display:block;margin-bottom:5px}
+.note code{font-family:var(--mono);font-size:0.85em;color:var(--lens)}
+
+/* terminal */
+.term{margin-top:26px;border:1px solid var(--rule-2);background:rgba(7,12,9,0.78);font-family:var(--mono);font-size:12.5px;line-height:1.65;
+  clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px);box-shadow:0 0 36px rgba(77,213,138,0.05)}
+.term__bar{display:flex;align-items:center;gap:7px;padding:9px 14px;border-bottom:1px dashed rgba(77,213,138,0.3);color:var(--muted);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase}
+.term__bar i{width:9px;height:9px;border-radius:50%;background:var(--lens-dim);box-shadow:0 0 5px var(--glow)}
+.term__bar span{margin-left:auto}
+.term__body{padding:15px 17px}
+.term__l{display:block;padding:3px 0;color:var(--ink)}
+.term__l b{color:var(--lens);font-weight:500;user-select:none}
+.term__o{display:block;padding:1px 0 11px 20px;color:var(--muted)}
+.term__o em{color:var(--ink-2);font-style:normal}
+.term__o .ok{color:var(--lens)}
+
+/* end / footer */
+.end{padding:60px 0 54px;border-top:1px solid var(--rule);text-align:center}
+.end__h{font-family:var(--serif);font-weight:400;font-size:clamp(26px,3.6vw,44px);line-height:1.05;margin:0 auto;max-width:22ch;text-wrap:balance;color:var(--ink)}
+.end__h em{font-style:italic;color:var(--lens);text-shadow:0 0 18px var(--glow)}
+.foot{padding:18px 0 26px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted)}
+.foot__row{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+/* ── motion ──────────────────────────────────────────── */
+/* 1 · scroll-reveal entrance (gated on .has-js so no-JS shows everything) */
+.has-js .reveal{opacity:0;transform:translateY(16px);transition:opacity .55s var(--ease),transform .55s var(--ease)}
+.has-js .reveal.in{opacity:1;transform:none}
+/* 2 · hover feedback — color/bg curve, no layout shift */
+.col__t{transition:color .16s var(--ease)}
+.has-js .col{transition:opacity .55s var(--ease),transform .55s var(--ease),background .18s var(--ease)}
+.has-js .col:hover{background:rgba(77,213,138,0.04)}
+.has-js .col:hover .col__t{color:var(--lens)}
+.has-js .tbl tbody tr{transition:background .15s var(--ease)}
+.has-js .tbl tbody tr:hover{background:rgba(77,213,138,0.04)}
+.has-js .term__l{transition:color .15s var(--ease)}
+.has-js .term__l:hover{color:var(--lens)}
+/* 3 · masthead one-shot entrance on load (brand + staggered nav) */
+@keyframes mastIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.has-js .mast__brand{animation:mastIn .5s var(--ease) both}
+.has-js .mast__nav a{animation:mastIn .45s var(--ease) both}
+.has-js .mast__nav a:nth-child(1){animation-delay:.14s}
+.has-js .mast__nav a:nth-child(2){animation-delay:.19s}
+.has-js .mast__nav a:nth-child(3){animation-delay:.24s}
+.has-js .mast__nav a:nth-child(4){animation-delay:.29s}
+.has-js .mast__nav a:nth-child(5){animation-delay:.34s}
+.has-js .mast__nav a:nth-child(6){animation-delay:.39s}
+.has-js .mast__nav a:nth-child(7){animation-delay:.44s}
+@media (prefers-reduced-motion:reduce){
+  .has-js .reveal{opacity:1!important;transform:none!important;transition:none}
+  .hero__dot{animation:none}
+}
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <div class="wrap mast__row">
+    <div class="mast__brand">Fleet Control Center <em>// ocuclaw</em></div>
+    <nav class="mast__nav">
+      <a href="#map">Map</a><a href="#loop">AI&nbsp;loop</a><a href="#boxes">Sprites</a><a href="#box">Anatomy</a>
+      <a href="#phone">Phone</a><a href="#control">Terminal</a><a href="#life">Bake</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="hero__eyebrow"><span class="hero__dot"></span>OcuClaw · the OpenClaw client for Even Realities' Even Hub &amp; G2</div>
+    <h1 class="hero__h">Develop for the glasses on a <em>whole fleet</em> — not one busy laptop.</h1>
+    <p class="hero__sub">
+      <b>OcuClaw</b> is the OpenClaw client that runs AI agents on Even Realities' <b>Even Hub</b> and the G2 smart
+      glasses. Building for it means looping the OcuClaw app (Kotlin/Compose)
+      plus an OpenClaw plugin through a G2 simulator and real hardware. <b>Fleet Control Center</b> turns that
+      single-machine grind into a fleet of ready boxes you drive from one screen — or your phone. Run many
+      build-and-test cycles at once, watch any box's live glasses or phone UI, and flip branches onto real G2 in seconds.
+    </p>
+  </div>
+  <div class="wrap">
+    <div class="cols">
+      <div class="col">
+        <div class="col__n">Bottleneck → gone</div>
+        <div class="col__t">One sim, one machine</div>
+        <div class="col__d">No more waiting your turn for the local simulator — the fleet runs many end-to-end loops in parallel.</div>
+      </div>
+      <div class="col">
+        <div class="col__n">Mix-up → gone</div>
+        <div class="col__t">One client, many versions</div>
+        <div class="col__d">A local OpenClaw client can't cleanly host two plugin versions at once. Each box is its <b>own</b> isolated stack.</div>
+      </div>
+      <div class="col">
+        <div class="col__n">Friction → gone</div>
+        <div class="col__t">Branches on real G2</div>
+        <div class="col__d">Serve any branch to a box's public URL and load it on the glasses in seconds — back-to-back.</div>
+      </div>
+    </div>
+    <p class="hero__close">
+      Plain commands and natural language on top. Underneath, it handles the per-box relays, private tunnels,
+      renewable leases, the one-client rule, and the single tailnet door — so you never have to think about any of it.
+    </p>
+  </div>
+</section>
+
+<!-- SYSTEM MAP -->
+<section class="sec" id="map">
+  <div class="wrap">
+    <div class="sec__eyebrow"><span>01</span> System map</div>
+    <h2 class="sec__h">One backend. Three ways in. <em>Everything local</em> but one door.</h2>
+    <p class="sec__lede">
+      The browser talks only to a PC-local backend (<code>fleet-cc</code>, <code>127.0.0.1:7317</code>), which reaches
+      each box over private tunnels. Three ways to use a box: <b>overview</b> (parked boxes stay cold; armed ones show a live glasses thumbnail),
+      <b>cockpit</b> (drive one live — glasses + app panes, diagnostics tabs), and <b>phone</b> (your phone becomes the
+      box's client). The only non-local edge is the phone lane's <code>tailscale serve</code> — tailnet-private, never
+      a public funnel.
+    </p>
+    <div class="panel">
+      <div class="panel__bar"><span>fig.01 — topology</span><b>overview · cockpit · phone</b></div>
+      <div class="panel__body">
+<pre class="mermaid">
+flowchart TB
+  classDef you fill:#0e1622,stroke:#7ad3ff,color:#dbeeff,stroke-width:1px;
+  classDef cc fill:#0c1a10,stroke:#4dd58a,color:#dff5e6,stroke-width:1.2px;
+  classDef box fill:#1a1408,stroke:#ffb454,color:#ffe7c2,stroke-width:1px;
+  classDef edge fill:#1a0e12,stroke:#ff8798,color:#ffd9df,stroke-width:1px;
+
+  BR["💻 PC browser · 📱 mobile PWA&lt;br/&gt;overview · cockpit"]:::you
+  PH["👓 G2 glasses — Even Hub app"]:::you
+
+  subgraph PC["fleet-cc backend · PC · 127.0.0.1:7317"]
+    direction LR
+    OV["overview"]:::cc
+    CKP["cockpit&lt;br/&gt;render + real input"]:::cc
+    PHL["phone lane&lt;br/&gt;origin + relay-bridge"]:::cc
+  end
+
+  TS["tailscale serve&lt;br/&gt;per box · tailnet-private"]:::edge
+
+  subgraph FLEET["the fleet · each box a full OcuClaw stack"]
+    direction LR
+    A["ocuclaw-a"]:::box
+    B["ocuclaw-b"]:::box
+    C["ocuclaw-c"]:::box
+  end
+
+  BR --> OV
+  BR --> CKP
+  PH --> TS --> PHL
+  OV -.->|"status poll"| FLEET
+  CKP ==>|"proxy tunnels"| FLEET
+  PHL ==>|"proxy tunnels"| FLEET
+</pre>
+      </div>
+    </div>
+    <div class="note">
+      <b>The one rule that makes it all work</b>
+      Each box answers to exactly one client at a time — the cockpit's sim <em>or</em> the glasses, never both.
+      Two clients on one box would fight over the same agent. Arming enforces it; diagnostics don't count.
+    </div>
+  </div>
+</section>
+
+<!-- AI LOOP -->
+<section class="sec" id="loop">
+  <div class="wrap">
+    <div class="sec__eyebrow"><span>02</span> The hands-off AI loop</div>
+    <h2 class="sec__h">Hand a box a task. It writes, builds, tests, reviews, and <em>opens the PR</em>.</h2>
+    <p class="sec__lede">
+      This is where the fleet earns its keep. Dispatch a self-contained task and the box runs the whole cycle on
+      its own, detached — it survives your disconnect. Fire several at once across the fleet and walk away:
+      different branches, no shared state, no waiting. You come back to finished branches and DONE mail. Each engine
+      cross-reviews with the <b>other</b> one on the box — codex checks claude's work and vice-versa — so every DONE
+      already carries a second opinion and a <code>review.txt</code>.
+    </p>
+    <div class="panel">
+      <div class="panel__bar"><span>fig.02 — theory → code → build → sim → review → PR</span><b>run N in parallel</b></div>
+      <div class="panel__body">
+<pre class="mermaid">
+flowchart TB
+  classDef you fill:#0e1622,stroke:#7ad3ff,color:#dbeeff,stroke-width:1px;
+  classDef box fill:#1a1408,stroke:#ffb454,color:#ffe7c2,stroke-width:1px;
+  classDef cc fill:#0c1a10,stroke:#4dd58a,color:#dff5e6,stroke-width:1.2px;
+
+  T["your task&lt;br/&gt;theory / prompt"]:::you --> FO["dispatch · codex or claude&lt;br/&gt;fan out across the fleet"]:::cc
+  FO --> A["ocuclaw-a"]:::box
+  FO --> B["ocuclaw-b"]:::box
+  FO --> C["ocuclaw-c"]:::box
+  A & B & C --> L
+
+  subgraph L["self-driving loop · per box · detached"]
+    direction LR
+    S1["sync trunk"] --> S2["agent writes code"] --> S3["build"] --> S4["G2 sim validate"] --> S5["cross-engine autoreview"] --> G{"clean?"}
+    G -->|no| S2
+    G -->|yes| S6["push branch&lt;br/&gt;+ DONE mail"]
+  end
+
+  S6 --> PR["you: git fetch → review → merge PR"]:::you
+</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DISPOSABLE -->
+<section class="sec" id="boxes">
+  <div class="wrap">
+    <div class="sec__eyebrow"><span>03</span> Disposable by design</div>
+    <h2 class="sec__h">Spin up as many boxes as you want. <em>Pay nothing</em> while they sleep.</h2>
+    <a class="brand-spr" href="https://sprites.dev" target="_blank" rel="noopener"><span>Built on</span><img src="data:image/png;base64,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" alt="Sprites" /></a>
+    <p class="sec__lede">
+      The fleet rides on <b>Sprites</b>, Fly's stateful-sandbox platform. Each box is a hardware-isolated Firecracker
+      microVM with a persistent filesystem — a real Linux computer that's still there, exactly as you left it, the
+      moment it wakes. Live copy-on-write checkpoints land in around 300&nbsp;ms, a parked box restores and reconnects
+      in well under a second, and an idle box hibernates and bills nothing. Sprites is purpose-built to run AI agents —
+      which is exactly what each box does — so you keep as many as you like, parked cold, and only pay for the seconds
+      one is actually working.
+    </p>
+    <div class="stats">
+      <div class="stat"><b>∞</b><span>boxes — as many as you want</span></div>
+      <div class="stat"><b>~300ms</b><span>live checkpoint · copy-on-write</span></div>
+      <div class="stat"><b>&lt;1s</b><span>to restore &amp; reconnect</span></div>
+      <div class="stat"><b>$0</b><span>billed while idle</span></div>
+    </div>
+    <div class="note">
+      <b>Reproduce a user's bug on their own device</b>
+      The same disposability powers remote debugging. Serve an instrumented debug bundle on the fly behind an
+      unguessable URL, hand it to a beta tester or bug reporter who isn't on your tailnet, and watch their live
+      boot/trace beacon as they hit the issue on their own device — then tear the box down. No access to their machine required.
+    </div>
+  </div>
+</section>
+
+<!-- BOX -->
+<section class="sec" id="box">
+  <div class="wrap">
+    <div class="sec__eyebrow"><span>04</span> Inside one box</div>
+    <h2 class="sec__h">Every box is a <em>complete</em>, isolated OcuClaw stack.</h2>
+    <p class="sec__lede">
+      A Sprites box (8&nbsp;GB) running its own OpenClaw gateway, relay, G2 simulator, and a dev server for the OcuClaw
+      app itself. Only that app server is web-fronted (the public <code>*.sprites.app</code> URL); the rest is
+      loopback-only and reached over private tunnels. The G2 sim runs headless under a virtual display — the same
+      simulator as the host, no GPU needed.
+    </p>
+    <table class="tbl">
+      <thead><tr><th>Service</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td>OcuClaw app :4173</td><td>Dev server for the OcuClaw client app (your build) — the public URL door, auth-toggleable. Auto-starts on first hit.</td></tr>
+        <tr><td>simulator</td><td>The G2 sim, headless. The box's one app client in the cockpit. Captured to the live render.</td></tr>
+        <tr><td>OpenClaw gateway + relay :9000</td><td>The OpenClaw gateway runs real, billed agent turns; the relay broadcasts each render frame to the client.</td></tr>
+        <tr><td>input shim</td><td>On-demand. Turns your clicks and keystrokes into real OS input on the sim — no second client.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- PHONE -->
+<section class="sec" id="phone">
+  <div class="wrap">
+    <div class="sec__eyebrow"><span>05</span> Phone lane</div>
+    <h2 class="sec__h">Your phone <em>becomes</em> the box — glasses UI, touch, and voice.</h2>
+    <p class="sec__lede">
+      A phone arm stops the box's sim and hands the phone the role of the single client. The PC serves the box at
+      a private per-box address; you scan a QR once and Even Hub loads the live stack over the tailnet. Real input,
+      real voice, real agent — just not on the public internet. The QR is stable per box, so you scan once and reuse it.
+    </p>
+    <p class="sec__lede" style="margin-top:14px">
+      That's one of two ways onto your phone. The other: <b>install the control center itself as a PWA</b> and drive the
+      whole fleet from your phone's browser — overview, cockpit, fullscreen glasses with swipe and wake-lock — over the
+      same tailnet.
+    </p>
+    <div class="shots">
+      <figure class="shot shot--p">
+        <img src="assets/fleet_screenshots/fleet_control.png" alt="Fleet overview on a phone" loading="lazy" />
+        <figcaption><b>Overview</b>The whole fleet at a glance — armed boxes show live content.</figcaption>
+      </figure>
+      <figure class="shot shot--p">
+        <img src="assets/fleet_screenshots/fleet_box.png" alt="Cockpit driving one box" loading="lazy" />
+        <figcaption><b>Cockpit</b>One box's glasses render with touchpad + compose controls.</figcaption>
+      </figure>
+      <figure class="shot shot--p">
+        <img src="assets/fleet_screenshots/fleet_Webui.png" alt="The OcuClaw app pane in the cockpit" loading="lazy" />
+        <figcaption><b>App pane</b>The live OcuClaw client UI, driven in-cockpit.</figcaption>
+      </figure>
+      <figure class="shot shot--l">
+        <img src="assets/fleet_screenshots/fleet_fullscreen.png" alt="Fullscreen landscape glasses takeover" loading="lazy" />
+        <figcaption><b>Fullscreen</b>Landscape glasses takeover with on-screen controls.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- CONTROL / SKILL -->
+<section class="sec" id="control">
+  <div class="wrap">
+    <div class="sec__eyebrow"><span>06</span> One terminal, plain English</div>
+    <h2 class="sec__h">Run the whole fleet by <em>asking</em> — the fleet-control skill.</h2>
+    <p class="sec__lede">
+      Behind all of this is a stack of precise commands. The <b>fleet-control skill</b> puts a natural-language front
+      on them: you describe the <b>work</b> — a smoke test, a feature with full E2E coverage, a branch on real G2 — and
+      it picks the right verbs, runs them, and reports back. One terminal does it all — and the same thing works from
+      your phone, since the always-on PC answers natural language too. Reversible asks just run; anything that costs
+      money or destroys state stops to confirm first.
+    </p>
+
+    <div class="term">
+      <div class="term__bar"><i></i> fleet-control <span>plain English → build · test · serve · drive · ship</span></div>
+      <div class="term__body">
+        <span class="term__l"><b>fleet ›</b> launch box B and run a full end-to-end smoke test of the whole OcuClaw stack — fresh install of latest OpenClaw, gateway up, sim render, one real agent turn</span>
+        <span class="term__o">wake b · fresh OpenClaw install · OpenClaw gateway + relay up · sim renders · 1 live agent turn → <span class="ok">smoke PASS</span></span>
+
+        <span class="term__l"><b>fleet ›</b> test PR #53 on b with codex, autoreview, ping me when green</span>
+        <span class="term__o">dispatch b · codex + cross-review on the box · <span class="ok">watching mail…</span></span>
+
+        <span class="term__l"><b>fleet ›</b> /goal implement agent switching on box A with full E2E testing — create several OpenClaw agents with different emojis, switch sessions, verify saved preferences, screenshot each step for the completion report</span>
+        <span class="term__o">dispatch a · multi-agent + emoji + session-switch + prefs · screenshots → <em>review.txt</em> · <span class="ok">running…</span></span>
+
+        <span class="term__l"><b>fleet ›</b> /goal make akelu finish the Hermes agent integration</span>
+        <span class="term__o"><em>not a fleet problem — a human problem</em> · routed to akelu (human) · pending… · ETA: soon™</span>
+
+        <span class="term__l"><b>fleet ›</b> serve my branch to a beta tester so they can repro their bug — watch their live trace</span>
+        <span class="term__o">serve instrumented bundle → token URL + QR · <span class="ok">beacon live — watching boot/trace…</span></span>
+
+        <span class="term__l"><b>fleet ›</b> re-bake all the boxes</span>
+        <span class="term__o">pull latest OpenClaw + G2 sim + skills · sync trunk HEAD · refresh codex + claude CLIs · sync auth keys · validate · re-snapshot checkpoint → <span class="ok">whole fleet fresh</span></span>
+
+        <span class="term__l"><b>fleet ›</b> park everything that's idle</span>
+        <span class="term__o">park b, c · <em>a held</em> (active dispatch — left running)</span>
+      </div>
+    </div>
+
+    <p class="sec__lede" style="margin-top:18px">
+      Under the hood it's an intent router: your sentence maps to the right verbs — <code>status</code>,
+      <code>dispatch</code>, <code>arm</code>, <code>serve</code>, <code>park</code> — run against <code>spritectl</code>,
+      <code>fleet-cc</code>, and mail, then summarized back to you.
+    </p>
+  </div>
+</section>
+
+<!-- LIFECYCLE -->
+<section class="sec" id="life">
+  <div class="wrap">
+    <div class="sec__eyebrow"><span>07</span> The bake cycle</div>
+    <h2 class="sec__h">Never building against <em>old code</em>.</h2>
+    <p class="sec__lede">
+      Each box is <b>baked</b> from a branch and saved as a checkpoint — that checkpoint is what parks and wakes in
+      under a second. From there you choose how fresh it stays: pin it to a branch and leave it, or rebake it up to
+      current HEAD so a long-parked box never drifts behind trunk.
+    </p>
+    <div class="cols">
+      <div class="col">
+        <div class="col__n">Bake</div>
+        <div class="col__t">Branch → checkpoint</div>
+        <div class="col__d">A box is provisioned from a branch and snapshotted. That checkpoint is the thing that comes back online in under a second, every time.</div>
+      </div>
+      <div class="col">
+        <div class="col__n">Pin</div>
+        <div class="col__t">Hold a branch as long as you like</div>
+        <div class="col__d">Keep a box sitting on a feature branch for extended testing — a long-lived rig that stays exactly where you left it until you say otherwise.</div>
+      </div>
+      <div class="col">
+        <div class="col__n">Rebake</div>
+        <div class="col__t">Bring it up to current HEAD</div>
+        <div class="col__d">Re-sync a box (or the whole fleet) to current trunk and re-checkpoint — on a schedule or on demand — so you never build against last week's code. Dispatched tasks sync trunk at start anyway.</div>
+      </div>
+    </div>
+    <div class="note">
+      <b>Security in one line</b>
+      The backend is localhost-only; boxes are reached over private tunnels; the one outside door is a tailnet-private
+      <code>tailscale serve</code>, never a public funnel. The access control is the network boundary — so a new
+      exposure is the one thing that always asks first.
+    </div>
+  </div>
+</section>
+
+<section class="end">
+  <div class="wrap">
+    <h2 class="end__h">Less waiting. Less friction. <em>One sentence</em> drives the fleet.</h2>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="wrap foot__row">
+    <span>OcuClaw · Fleet Control Center</span>
+    <span>OpenClaw client · Even Realities Even Hub · G2</span>
+    <span>tools/fleet-cc</span>
+  </div>
+</footer>
+
+<script>
+  mermaid.initialize({
+    startOnLoad:false, theme:'base', securityLevel:'loose',
+    flowchart:{curve:'basis',htmlLabels:true,padding:14},
+    sequence:{useMaxWidth:true,mirrorActors:false,actorMargin:64},
+    themeVariables:{
+      darkMode:true, fontFamily:'JetBrains Mono, ui-monospace, monospace', fontSize:'13px',
+      background:'#0b0d0a', primaryColor:'#0c1a10', primaryTextColor:'#dff5e6', primaryBorderColor:'#4dd58a',
+      secondaryColor:'#141a14', tertiaryColor:'#0f1310', lineColor:'#2f8c58', textColor:'#cfe8d4',
+      actorBkg:'#0c1a10', actorBorder:'#4dd58a', actorTextColor:'#dff5e6', actorLineColor:'#2f8c58',
+      signalColor:'#4dd58a', signalTextColor:'#cfe8d4', labelBoxBkgColor:'#141a14', labelBoxBorderColor:'#2f8c58',
+      labelTextColor:'#dff5e6', loopTextColor:'#cfe8d4', noteBkgColor:'#101510', noteBorderColor:'#4dd58a',
+      noteTextColor:'#cfe8d4', activationBkgColor:'#1a1408', activationBorderColor:'#ffb454',
+      clusterBkg:'rgba(10,18,12,0.35)', clusterBorder:'rgba(240,245,234,0.18)', titleColor:'#4dd58a',
+      edgeLabelBackground:'#0b0d0a', nodeTextColor:'#dff5e6', labelColor:'#dff5e6'
+    }
+  });
+
+  // Render manually so we get a promise, then wire one-shot draw-in per figure.
+  mermaid.run({ querySelector: '.mermaid' }).then(setupFigDrawIn).catch(function(){ /* render failed → leave figs static */ });
+
+  var FIG_EASE = 'cubic-bezier(0.2,0,0,1)';
+  function figEls(svg){
+    return {
+      clusters: svg.querySelectorAll('.cluster'),
+      nodes:    svg.querySelectorAll('.node'),
+      labels:   svg.querySelectorAll('.edgeLabel'),
+      edges:    svg.querySelectorAll('.edgePaths path'),
+      markers:  svg.querySelectorAll('marker path')
+    };
+  }
+  function prepFig(svg){
+    var g = figEls(svg);
+    g.clusters.forEach(function(el){ el.style.opacity = 0; });
+    g.nodes.forEach(function(el){ el.style.opacity = 0; });      // opacity only — never transform (clobbers node positioning)
+    g.labels.forEach(function(el){ el.style.opacity = 0; });
+    g.markers.forEach(function(el){ el.style.opacity = 0; });
+    g.edges.forEach(function(p){
+      var len = 0; try { len = p.getTotalLength(); } catch(e){}
+      if (len){ p.style.strokeDasharray = len; p.style.strokeDashoffset = len; }
+      else { p.style.opacity = 0; }
+    });
+  }
+  function drawFig(svg){
+    var g = figEls(svg);
+    function fade(el, delay, dur){ el.animate([{opacity:0},{opacity:1}], {duration:dur, delay:delay, easing:FIG_EASE, fill:'forwards'}); }
+    g.clusters.forEach(function(el,i){ fade(el, i*60, 420); });
+    g.nodes.forEach(function(el,i){ fade(el, 140 + i*50, 420); });
+    g.edges.forEach(function(p,i){
+      var len = parseFloat(p.style.strokeDashoffset) || 0;
+      if (len){ p.animate([{strokeDashoffset:len},{strokeDashoffset:0}], {duration:650, delay:360 + i*40, easing:FIG_EASE, fill:'forwards'}); }
+      else { fade(p, 360 + i*40, 400); }
+    });
+    g.labels.forEach(function(el,i){ fade(el, 520 + i*40, 360); });
+    g.markers.forEach(function(el){ fade(el, 720, 300); });
+  }
+  function setupFigDrawIn(){
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var figs = document.querySelectorAll('.mermaid svg');
+    if (reduce || !figs.length) return;                 // reduced-motion → figs stay fully drawn
+    figs.forEach(prepFig);
+    if (!('IntersectionObserver' in window)){ figs.forEach(drawFig); return; }
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){ if (e.isIntersecting){ drawFig(e.target); io.unobserve(e.target); } });
+    }, { rootMargin: '0px 0px -10% 0px', threshold: 0.15 });
+    figs.forEach(function(svg){ io.observe(svg); });
+  }
+</script>
+
+<script>
+  // Scroll-reveal entrance — transform+opacity, staggered grids. Gated so no-JS / reduced-motion show all.
+  (function(){
+    var root = document.documentElement;
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return;                         // leave everything visible, no hiding
+    root.classList.add('has-js');
+
+    var items = [];
+    document.querySelectorAll(
+      '.hero__eyebrow,.hero__h,.hero__sub,.hero__close,' +
+      '.sec__eyebrow,.sec__h,.sec__lede,.panel,.note,.tbl,.term,.end__h'
+    ).forEach(function(el){ el.classList.add('reveal'); items.push(el); });
+
+    // stagger children of the ruled grids (small groups only: 3–4 cells)
+    document.querySelectorAll('.cols,.stats').forEach(function(grid){
+      Array.prototype.forEach.call(grid.children, function(cell, i){
+        cell.classList.add('reveal');
+        cell.style.transitionDelay = (i * 70) + 'ms';
+        items.push(cell);
+      });
+    });
+
+    if (!('IntersectionObserver' in window)) {        // fallback: just show
+      items.forEach(function(el){ el.classList.add('in'); });
+      return;
+    }
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.05 });
+    items.forEach(function(el){ io.observe(el); });
+  })();
+
+  // Count-up on the stat numbers — counts only the numeric core, leaves ∞ / glyphs intact.
+  (function(){
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return;                                  // reduced-motion → numbers stay as authored
+    var band = document.querySelector('.stats');
+    if (!band) return;
+    var cells = [];
+    band.querySelectorAll('.stat b').forEach(function(el){
+      var raw = el.textContent.trim();
+      var m = raw.match(/^(\D*?)(\d[\d,]*\.?\d*)(\D*)$/);
+      if (!m) return;                                    // e.g. "∞" → no numeric core, skip
+      var prefix = m[1], numStr = m[2], suffix = m[3];
+      var hasComma = numStr.indexOf(',') > -1;
+      var decimals = (numStr.split('.')[1] || '').length;
+      var target = parseFloat(numStr.replace(/,/g, ''));
+      function fmt(v){
+        var s = decimals ? v.toFixed(decimals) : String(Math.round(v));
+        return hasComma ? Number(s).toLocaleString('en-US') : s;
+      }
+      el.textContent = prefix + fmt(0) + suffix;
+      cells.push(function(){
+        var dur = 1100, t0 = null;
+        function step(ts){
+          if (t0 === null) t0 = ts;
+          var p = Math.min((ts - t0) / dur, 1);
+          var e = 1 - Math.pow(1 - p, 3);                // easeOutCubic
+          el.textContent = prefix + fmt(target * e) + suffix;
+          if (p < 1) requestAnimationFrame(step);
+          else el.textContent = prefix + numStr + suffix; // restore exact original
+        }
+        requestAnimationFrame(step);
+      });
+    });
+    if (!cells.length || !('IntersectionObserver' in window)){ cells.forEach(function(f){ f(); }); return; }
+    var co = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){ if (e.isIntersecting){ cells.forEach(function(f){ f(); }); co.disconnect(); } });
+    }, { threshold: 0.3 });
+    co.observe(band);
+  })();
+</script>
+<div class="lightbox" id="lightbox" aria-hidden="true">
+  <span class="lightbox__x" aria-label="Close">✕</span>
+  <img alt="" />
+  <div class="lightbox__cap"></div>
+</div>
+<script>
+(function(){
+  var lb=document.getElementById('lightbox'); if(!lb) return;
+  var img=lb.querySelector('img'), cap=lb.querySelector('.lightbox__cap');
+  function open(src,text){img.src=src;cap.textContent=text||'';lb.classList.add('is-open');lb.setAttribute('aria-hidden','false');}
+  function close(){lb.classList.remove('is-open');lb.setAttribute('aria-hidden','true');img.src='';}
+  document.querySelectorAll('.shot img').forEach(function(t){
+    t.addEventListener('click',function(){var fc=t.closest('.shot').querySelector('figcaption');open(t.currentSrc||t.src, fc?fc.textContent:'');});
+  });
+  lb.addEventListener('click',close);
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')close();});
+})();
+</script>
+</body>
+</html>
