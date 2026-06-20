@@ -9,11 +9,28 @@
 
 export const config = {
   // Match everything EXCEPT the public paths, favicon, and Vercel internals.
-  matcher: ['/((?!setup-assistant\\.md|fleet-control-centre\\.html|assets/fleet_screenshots/|favicon\\.ico|_vercel).*)'],
+  matcher: ['/((?!setup-assistant\\.md$|fleet-control-centre\\.html$|assets/fleet_screenshots/|favicon\\.ico$|_vercel($|/)).*)'],
 }
 
 export default function middleware(request) {
-  const expected = 'Basic ' + btoa('admin:' + (process.env.SITE_PASSWORD || ''))
+  // Font hotlink guard (defense-in-depth for the licensed Even Signature face).
+  // Block cross-site requests for font files so another domain can't embed or
+  // hotlink the WOFF2. Same-origin page loads and direct navigation still pass;
+  // Basic Auth below is the primary gate.
+  const path = new URL(request.url).pathname
+  if (/\.(woff2?|otf|ttf)$/i.test(path) &&
+      request.headers.get('sec-fetch-site') === 'cross-site') {
+    return new Response('Forbidden', { status: 403 })
+  }
+
+  // Fail closed: if no password is configured, refuse everything rather than
+  // accepting an empty-password credential (admin: with a blank password).
+  const password = process.env.SITE_PASSWORD
+  if (!password) {
+    return new Response('Site auth not configured', { status: 503 })
+  }
+
+  const expected = 'Basic ' + btoa('admin:' + password)
   const provided = request.headers.get('authorization')
 
   if (provided === expected) {
