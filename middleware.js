@@ -9,7 +9,7 @@
 
 export const config = {
   // Match everything EXCEPT the public paths, favicon, and Vercel internals.
-  matcher: ['/((?!setup-assistant\\.md$|fleet-control-centre\\.html$|assets/fleet_screenshots/|favicon\\.ico$|_vercel($|/)).*)'],
+  matcher: ['/((?!setup-assistant\\.md$|fleet-control-centre\\.html$|assets/fleet_screenshots/|favicon\\.ico$|_vercel(?:$|/)).*)'],
 }
 
 export default function middleware(request) {
