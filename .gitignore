@@ -33,3 +33,12 @@ Thumbs.db
 
 # Vercel
 .vercel
+
+# Local commit/push helpers (machine-specific launchers — never commit)
+/git-sync.sh
+/commit-push.desktop
+
+# Brand font tooling & licensed masters (local-only — never ship the raw face)
+/tools/
+*.otf
+*.ttf
